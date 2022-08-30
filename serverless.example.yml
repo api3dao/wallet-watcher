@@ -1,0 +1,47 @@
+service: wallet-watcher
+
+plugins:
+  - serverless-plugin-typescript
+
+variablesResolutionMode: 20210326
+
+package:
+  patterns:
+    - ./config/walletConfig.json
+
+provider:
+  name: aws
+  region: us-east-1
+  stage: production
+  runtime: nodejs14.x
+  architecture: arm64
+  lambdaHashingVersion: 20201221
+  logRetentionInDays: 7
+  apiGateway:
+    restApiId: 'something'
+    restApiRootResourceId: 'something'
+    apiKeys:
+      - x-api-key: aCaCAXMq59sc7S4BWGRgBXDNPYBjVMYp
+  vpc:
+    securityGroupIds:
+      - sg-00000000000000000
+    subnetIds:
+      - subnet-00000000
+  environment:
+    SLACK_WORKSPACE_TOKEN: ''
+    SLACK_BOT_TOKEN: ''
+    SLACK_SIGNING_SECRET: ''
+    SLACK_WEBHOOK_GENERAL_URL: ''
+    OPSGENIE_API_KEY: ''
+    SLACK_WEBHOOK_HEARTBEAT_URL: ''
+    DEBUG: true
+
+functions:
+  wallets:
+    handler: src/handlers.walletTasksHandler
+    timeout: 360
+    memorySize: 128
+    # environment:
+    #    WALLET_ENABLE_SEND_FUNDS: true # Do not enable this in dev environments (!)
+    events:
+      - schedule: rate(5 minutes)
