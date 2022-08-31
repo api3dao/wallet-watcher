@@ -1,7 +1,8 @@
 import 'source-map-support/register';
+import { promises } from '@api3/operations-utilities/dist/index';
 import { exit } from './utils';
 import { walletTasksHandler } from './handlers';
-import { settleAndCheckForPromiseRejections } from './promise-utils';
+
 export const runAndHandleErrors = (fn: () => Promise<unknown>) => {
   fn()
     .then(() => {
@@ -14,7 +15,7 @@ export const runAndHandleErrors = (fn: () => Promise<unknown>) => {
 };
 
 const main = async () => {
-  await settleAndCheckForPromiseRejections([walletTasksHandler({})]);
+  await promises.settleAndCheckForPromiseRejections([walletTasksHandler({})]);
 };
 
 runAndHandleErrors(main);

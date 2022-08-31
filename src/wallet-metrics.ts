@@ -5,7 +5,7 @@ import { parseEther } from 'ethers/lib/utils';
 import { OperationsRepository } from '@api3/operations';
 import { go } from '@api3/airnode-utilities';
 import { PROTOCOL_ID_PSP } from '@api3/operations/dist/utils/evm';
-import { evm, logging, opsGenie } from '@api3/operations-utilities/dist';
+import { evm, logging, opsGenie, promises } from '@api3/operations-utilities/dist';
 import { API3_XPUB } from './constants';
 import {
   ExtendedWalletWithMetadata,
@@ -16,7 +16,6 @@ import {
   ChainsConfig,
   OpsGenieConfig,
 } from './types';
-import { settleAndCheckForPromiseRejections } from './promise-utils';
 
 export const getGlobalProvider = async (chains: ChainsConfig, opsGenieConfig: OpsGenieConfig, id: string) => {
   if (chains[id]) {
@@ -367,7 +366,7 @@ export const topUpWallets = async (
   walletConfig: WalletConfig,
   globalSponsors: GlobalSponsors
 ) =>
-  await settleAndCheckForPromiseRejections(
+  await promises.settleAndCheckForPromiseRejections(
     wallets.map((wallet) => checkAndFundWallet(wallet, walletConfig, globalSponsors))
   );
 
@@ -381,5 +380,5 @@ export const runWalletTasks = async (walletConfig: WalletConfig, operations: Ope
   const globalSponsors = await getGlobalSponsors(walletConfig);
   const walletsAndBalances = await getWalletsAndBalances(walletConfig, operations);
 
-  await settleAndCheckForPromiseRejections([topUpWallets(walletsAndBalances, walletConfig, globalSponsors)]);
+  await promises.settleAndCheckForPromiseRejections([topUpWallets(walletsAndBalances, walletConfig, globalSponsors)]);
 };

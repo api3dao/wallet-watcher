@@ -2,10 +2,9 @@ import 'source-map-support/register';
 import path from 'path';
 import fs from 'fs';
 import { readOperationsRepository } from '@api3/operations/dist/utils/read-operations';
-import { logging, opsGenie } from '@api3/operations-utilities/dist/index';
+import { logging, opsGenie, promises } from '@api3/operations-utilities/dist/index';
 import { runWalletTasks } from './wallet-metrics';
 import { WalletConfig } from './types';
-import { go } from './promise-utils';
 
 export const getWalletConfig = (): WalletConfig => {
   const configPath = path.join(__dirname, '../config/walletConfig.json');
@@ -25,7 +24,7 @@ export const walletTasksHandler = async (_event: any = {}): Promise<any> => {
   const walletConfig = getWalletConfig();
   await opsGenie.cacheOpenAlerts(walletConfig.opsGenieConfig);
 
-  const [err] = await go(
+  const [err] = await promises.go(
     async () => {
       const opsConfig = readOperationsRepository();
 
