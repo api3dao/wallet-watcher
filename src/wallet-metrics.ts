@@ -5,19 +5,23 @@ import { parseEther } from 'ethers/lib/utils';
 import { OperationsRepository } from '@api3/operations';
 import { go } from '@api3/airnode-utilities';
 import { PROTOCOL_ID_PSP } from '@api3/operations/dist/utils/evm';
-import { evm, logging, opsGenie, promises } from '@api3/operations-utilities/dist';
-import { API3_XPUB } from './constants';
 import {
-  ExtendedWalletWithMetadata,
-  GlobalSponsor,
-  GlobalSponsors,
-  WalletStatus,
-  WalletConfig,
-  ChainsConfig,
+  evm,
+  logging,
+  opsGenie,
+  promises,
+  TelemetryChainConfig,
   OpsGenieConfig,
-} from './types';
+  GlobalSponsor,
+} from '@api3/operations-utilities/dist';
+import { API3_XPUB } from './constants';
+import { ExtendedWalletWithMetadata, WalletStatus, WalletConfig } from './types';
 
-export const getGlobalProvider = async (chains: ChainsConfig, opsGenieConfig: OpsGenieConfig, id: string) => {
+export const getGlobalProvider = async (
+  chains: Record<string, TelemetryChainConfig>,
+  opsGenieConfig: OpsGenieConfig,
+  id: string
+) => {
   if (chains[id]) {
     return chains[id].rpc;
   }
@@ -330,7 +334,7 @@ export const getGas = async (globalSponsor: GlobalSponsor) => {
  *
  * @param walletConfig parsed walletConfig
  */
-export const getGlobalSponsors = async (walletConfig: WalletConfig): Promise<GlobalSponsors> => {
+export const getGlobalSponsors = async (walletConfig: WalletConfig): Promise<GlobalSponsor[]> => {
   const promisedSponsors = await Promise.all(
     Object.entries(walletConfig.chains)
       .filter(([_chainId, chain]) => chain.globalSponsorLowBalanceWarn && chain.lowBalance && chain.topUpAmount)
@@ -358,13 +362,13 @@ export const getGlobalSponsors = async (walletConfig: WalletConfig): Promise<Glo
       })
   );
 
-  return promisedSponsors.filter((entry) => !!entry) as GlobalSponsors;
+  return promisedSponsors.filter((entry) => !!entry) as GlobalSponsor[];
 };
 
 export const topUpWallets = async (
   wallets: WalletStatus[],
   walletConfig: WalletConfig,
-  globalSponsors: GlobalSponsors
+  globalSponsors: GlobalSponsor[]
 ) =>
   await promises.settleAndCheckForPromiseRejections(
     wallets.map((wallet) => checkAndFundWallet(wallet, walletConfig, globalSponsors))
