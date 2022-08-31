@@ -4,6 +4,7 @@ import { BigNumber } from 'ethers';
 import { keccak256 } from 'ethers/lib/utils';
 import { readOperationsRepository } from '@api3/operations/dist/utils/read-operations';
 import { OperationsRepository } from '@api3/operations';
+import { evm } from '@api3/operations-utilities/dist/index';
 import {
   GlobalConfig,
   Metric,
@@ -15,7 +16,6 @@ import {
 import { log, logTrace } from './logging';
 import { debugLog, doTimeout, getGlobalConfig } from './utils';
 import { go } from './promise-utils';
-import { resolveChainName } from './evm-utils';
 
 /**
  * We cache open OpsGenie alerts to reduce API calls to not hit API limits prematurely.
@@ -458,7 +458,7 @@ export const evaluateThreshold = async (
         if (actualValue.gt(evaluationThreshold)) {
           debugLog('Inside evaluateThreshold where actualValue greater than evaluationThreshold');
           const opsGenieMessage = {
-            headline: `Beacon deviation exceeded: ${metric.metadata.name} on ${await resolveChainName(
+            headline: `Beacon deviation exceeded: ${metric.metadata.name} on ${evm.resolveChainName(
               metric.metadata.chainId
             )}`,
             priority: 'P2',
@@ -466,7 +466,7 @@ export const evaluateThreshold = async (
               actualValue
             )}% vs evaluation threshold: ${prettyPrintPercentage(evaluationThreshold)}% (${
               globalConfig.deviationAlertMultiplier
-            }x) on chain ${await resolveChainName(metric.metadata.chainId)}`,
+            }x) on chain ${evm.resolveChainName(metric.metadata.chainId)}`,
             description: `Beacon Metadata: \n${JSON.stringify(metric.metadata)}`,
             alias: `${metric.metricName}-dev-tol-${keccak256(
               new TextEncoder().encode(`${metric.metadata.chainId}${metric.metadata.beaconId}`)

@@ -35,7 +35,8 @@
     "sls:remove": "sls remove --region us-east-1",
     "test": "jest --selectProjects unit",
     "test:e2e": "SILENCE_LOGGER=true jest --selectProjects e2e --runInBand",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "postinstall": "git clone https://github.com/api3dao/operations-utilities.git operations-utilities; cd operations-utilities && git checkout initial && yarn install && yarn build && cd ..; cp -a operations-utilities/. node_modules/@api3/operations-utilities; rm -rf operations-utilities"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.5",
@@ -72,7 +73,7 @@
   "dependencies": {
     "@api3/airnode-abi": "^0.6.0",
     "@api3/airnode-admin": "^0.6.0",
-    "@api3/airnode-node": "^0.6.0",
+    "@api3/airnode-node": "0.6.0",
     "@api3/airnode-protocol": "^0.6.0",
     "@api3/airnode-protocol-v1": "^0.4.0",
     "@api3/airnode-utilities": "^0.6.0",

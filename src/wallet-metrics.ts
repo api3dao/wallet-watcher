@@ -5,12 +5,37 @@ import { parseEther } from 'ethers/lib/utils';
 import { OperationsRepository } from '@api3/operations';
 import { go } from '@api3/airnode-utilities';
 import { PROTOCOL_ID_PSP } from '@api3/operations/dist/utils/evm';
+import { evm } from '@api3/operations-utilities/dist/index';
 import { API3_XPUB } from './constants';
-import { ExtendedWalletWithMetadata, GlobalSponsor, GlobalSponsors, WalletStatus, WalletConfig } from './types';
-import { getGlobalProvider, resolveChainId, resolveExplorerUrlByName } from './evm-utils';
+import {
+  ExtendedWalletWithMetadata,
+  GlobalSponsor,
+  GlobalSponsors,
+  WalletStatus,
+  WalletConfig,
+  ChainsConfig,
+  OpsGenieConfig,
+} from './types';
 import { closeOpsGenieAlertWithAlias, sendToOpsGenieLowLevel } from './opsgenie-utils';
 import { logTrace } from './logging';
 import { settleAndCheckForPromiseRejections } from './promise-utils';
+
+export const getGlobalProvider = async (chains: ChainsConfig, opsGenieConfig: OpsGenieConfig, id: string) => {
+  if (chains[id]) {
+    return chains[id].rpc;
+  }
+
+  await sendToOpsGenieLowLevel(
+    {
+      message: `No provider found for chain id ${id}`,
+      alias: `no-provider-found-${id}`,
+      description: `No provider found for this chain ID, please check the config/walletConfig.json file`,
+      priority: 'P2',
+    },
+    opsGenieConfig
+  );
+  return '';
+};
 
 /**
  * Notes
@@ -24,7 +49,7 @@ import { settleAndCheckForPromiseRejections } from './promise-utils';
  * @param chainName the name of the chain
  */
 export const getProvider = async (walletConfig: WalletConfig, chainName: string) => {
-  const chainId = await resolveChainId(chainName);
+  const chainId = evm.resolveChainId(chainName);
   if (!chainId) {
     await sendToOpsGenieLowLevel(
       {
@@ -147,7 +172,7 @@ const checkAndFundWallet = async (
   globalSponsors: GlobalSponsor[]
 ) => {
   try {
-    const chainId = await resolveChainId(wallet.chainName);
+    const chainId = evm.resolveChainId(wallet.chainName);
     const globalSponsor = globalSponsors.find((sponsor) => sponsor.chainId === chainId);
 
     // Close previous cycle alerts
@@ -201,10 +226,10 @@ const checkAndFundWallet = async (
           description: [
             `DID NOT ACTUALLY SEND FUNDS! WALLET_ENABLE_SEND_FUNDS is not set`,
             `Type of wallet: ${wallet.walletType}`,
-            `Address: ${await resolveExplorerUrlByName(walletConfig.explorerUrls, wallet.chainName)}address/${
+            `Address: ${evm.resolveExplorerUrlByName(walletConfig.explorerUrls, wallet.chainName)}address/${
               wallet.address
             } )`,
-            `Transaction: ${await resolveExplorerUrlByName(
+            `Transaction: ${evm.resolveExplorerUrlByName(
               walletConfig.explorerUrls,
               wallet.chainName
             )}tx/not-applicable`,
@@ -235,10 +260,10 @@ const checkAndFundWallet = async (
         alias: `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
         description: [
           `Type of wallet: ${wallet.walletType}`,
-          `Address: ${await resolveExplorerUrlByName(walletConfig.explorerUrls, wallet.chainName)}address/${
+          `Address: ${evm.resolveExplorerUrlByName(walletConfig.explorerUrls, wallet.chainName)}address/${
             wallet.address
           } )`,
-          `Transaction: ${await resolveExplorerUrlByName(walletConfig.explorerUrls, wallet.chainName)}tx/${
+          `Transaction: ${evm.resolveExplorerUrlByName(walletConfig.explorerUrls, wallet.chainName)}tx/${
             receipt?.hash ?? 'WALLET_ENABLE_SEND_FUNDS disabled'
           }`,
         ].join('\n'),
