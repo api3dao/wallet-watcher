@@ -5,7 +5,7 @@ import { parseEther } from 'ethers/lib/utils';
 import { OperationsRepository } from '@api3/operations';
 import { go } from '@api3/airnode-utilities';
 import { PROTOCOL_ID_PSP } from '@api3/operations/dist/utils/evm';
-import { evm, logging } from '@api3/operations-utilities/dist';
+import { evm, logging, opsGenie } from '@api3/operations-utilities/dist';
 import { API3_XPUB } from './constants';
 import {
   ExtendedWalletWithMetadata,
@@ -16,7 +16,6 @@ import {
   ChainsConfig,
   OpsGenieConfig,
 } from './types';
-import { closeOpsGenieAlertWithAlias, sendToOpsGenieLowLevel } from './opsgenie-utils';
 import { settleAndCheckForPromiseRejections } from './promise-utils';
 
 export const getGlobalProvider = async (chains: ChainsConfig, opsGenieConfig: OpsGenieConfig, id: string) => {
@@ -24,7 +23,7 @@ export const getGlobalProvider = async (chains: ChainsConfig, opsGenieConfig: Op
     return chains[id].rpc;
   }
 
-  await sendToOpsGenieLowLevel(
+  await opsGenie.sendToOpsGenieLowLevel(
     {
       message: `No provider found for chain id ${id}`,
       alias: `no-provider-found-${id}`,
@@ -50,7 +49,7 @@ export const getGlobalProvider = async (chains: ChainsConfig, opsGenieConfig: Op
 export const getProvider = async (walletConfig: WalletConfig, chainName: string) => {
   const chainId = evm.resolveChainId(chainName);
   if (!chainId) {
-    await sendToOpsGenieLowLevel(
+    await opsGenie.sendToOpsGenieLowLevel(
       {
         message: 'Invalid chain name',
         alias: `invalid-chain-name-${chainName}`,
@@ -60,7 +59,7 @@ export const getProvider = async (walletConfig: WalletConfig, chainName: string)
       walletConfig.opsGenieConfig
     );
   } else {
-    await closeOpsGenieAlertWithAlias(`invalid-chain-name-${chainName}`, walletConfig.opsGenieConfig);
+    await opsGenie.closeOpsGenieAlertWithAlias(`invalid-chain-name-${chainName}`, walletConfig.opsGenieConfig);
   }
   const providerUrl = await getGlobalProvider(walletConfig.chains, walletConfig.opsGenieConfig, chainId!);
 
@@ -175,13 +174,13 @@ const checkAndFundWallet = async (
     const globalSponsor = globalSponsors.find((sponsor) => sponsor.chainId === chainId);
 
     // Close previous cycle alerts
-    await closeOpsGenieAlertWithAlias(
+    await opsGenie.closeOpsGenieAlertWithAlias(
       `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
       walletConfig.opsGenieConfig
     );
 
     if (!globalSponsor) {
-      await sendToOpsGenieLowLevel(
+      await opsGenie.sendToOpsGenieLowLevel(
         {
           message: `Can't find a valid global sponsor for ${wallet.address} on ${wallet.chainName}`,
           alias: `no-sponsor-${wallet.address}-${wallet.chainName}`,
@@ -192,7 +191,10 @@ const checkAndFundWallet = async (
       return;
     }
 
-    await closeOpsGenieAlertWithAlias(`no-sponsor-${wallet.address}-${wallet.chainName}`, walletConfig.opsGenieConfig);
+    await opsGenie.closeOpsGenieAlertWithAlias(
+      `no-sponsor-${wallet.address}-${wallet.chainName}`,
+      walletConfig.opsGenieConfig
+    );
 
     if (!(globalSponsor.lowBalance && globalSponsor.topUpAmount && globalSponsor.globalSponsorLowBalanceWarn)) {
       return;
@@ -204,7 +206,7 @@ const checkAndFundWallet = async (
     }
 
     if ((await globalSponsor.sponsor.getBalance()).lt(threshold)) {
-      await sendToOpsGenieLowLevel(
+      await opsGenie.sendToOpsGenieLowLevel(
         {
           message: `Low balance on primary top-up sponsor for chain ${wallet.chainName}`,
           alias: `low-master-sponsor-balance-${wallet.chainName}`,
@@ -213,12 +215,15 @@ const checkAndFundWallet = async (
         walletConfig.opsGenieConfig
       );
     }
-    await closeOpsGenieAlertWithAlias(`low-master-sponsor-balance-${wallet.chainName}`, walletConfig.opsGenieConfig);
+    await opsGenie.closeOpsGenieAlertWithAlias(
+      `low-master-sponsor-balance-${wallet.chainName}`,
+      walletConfig.opsGenieConfig
+    );
 
     const gasOptions = await getGas(globalSponsor);
 
     if (!process.env.WALLET_ENABLE_SEND_FUNDS) {
-      await sendToOpsGenieLowLevel(
+      await opsGenie.sendToOpsGenieLowLevel(
         {
           message: `(would have) Just topped up ${wallet.address} on ${wallet.chainName}`,
           alias: `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
@@ -238,7 +243,7 @@ const checkAndFundWallet = async (
         walletConfig.opsGenieConfig
       );
 
-      await closeOpsGenieAlertWithAlias(
+      await opsGenie.closeOpsGenieAlertWithAlias(
         `error-while-topping-up-wallet-${wallet.address}-${wallet.chainName}`,
         walletConfig.opsGenieConfig
       );
@@ -253,7 +258,7 @@ const checkAndFundWallet = async (
     });
     await receipt.wait(1);
 
-    await sendToOpsGenieLowLevel(
+    await opsGenie.sendToOpsGenieLowLevel(
       {
         message: `Just topped up ${wallet.address} on ${wallet.chainName}`,
         alias: `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
@@ -271,12 +276,12 @@ const checkAndFundWallet = async (
       walletConfig.opsGenieConfig
     );
 
-    await closeOpsGenieAlertWithAlias(
+    await opsGenie.closeOpsGenieAlertWithAlias(
       `error-while-topping-up-wallet-${wallet.address}-${wallet.chainName}`,
       walletConfig.opsGenieConfig
     );
   } catch (e) {
-    await sendToOpsGenieLowLevel(
+    await opsGenie.sendToOpsGenieLowLevel(
       {
         message: 'An error occurred while trying to up up a wallet',
         alias: `error-while-topping-up-wallet-${wallet.address}-${wallet.chainName}`,
