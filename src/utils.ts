@@ -3,7 +3,7 @@ import fs, { readdirSync, readFileSync } from 'fs';
 import axios from 'axios';
 import { parseUnits } from 'ethers/lib/utils';
 import { keyBy } from 'lodash';
-import { log } from './logging';
+import { logging } from '@api3/operations-utilities/dist';
 import { EthValue, GlobalConfig, NodeConfig, ErrorConditions, ErrorStatus, HealthResponse, Node } from './types';
 
 export const doTimeout = (interval: number) => new Promise((resolve) => setTimeout(() => resolve(null), interval));
@@ -11,13 +11,13 @@ export const doTimeout = (interval: number) => new Promise((resolve) => setTimeo
 export const convertEtherValue = (input: EthValue) => parseUnits(`${input.amount}`, input.units);
 
 export const exit = (code = 0) => {
-  log(`Exiting, code: ${code}`);
+  logging.log(`Exiting, code: ${code}`);
   process.exit(code);
 };
 
 export const getGlobalConfig = (): GlobalConfig => {
   const configPath = path.join(__dirname, '../config/walletConfig.json');
-  debugLog('Config Path:', configPath, fs.readdirSync(path.join(__dirname, '..')));
+  logging.debugLog('Config Path:', configPath, fs.readdirSync(path.join(__dirname, '..')));
 
   return JSON.parse(fs.readFileSync(configPath).toString('utf-8'));
 };
@@ -107,13 +107,5 @@ export const prettyPrintMemoryUsage = () => {
     Object.entries(process.memoryUsage()).map(([key, value]) => [key, `${value / 1024 / 1024}`])
   );
 
-  debugLog(usage);
-};
-
-/**
- * Logs the supplied arguments to stdout when the ENV DEBUG is defined
- */
-export const debugLog = (...args: any[]) => {
-  if (process.env.DEBUG) console.debug(args);
-  console.debug(args);
+  logging.debugLog(usage);
 };

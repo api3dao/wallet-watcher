@@ -1,5 +1,5 @@
 import express from 'express';
-import { log } from '../../src/logging';
+import { logging } from '@api3/operations-utilities/dist/index';
 import { serverETHValue, serverBTCValue } from '../setup/deployment';
 
 const PORT = 5000;
@@ -20,9 +20,9 @@ app.get('/explorer', (req, res) => {
 });
 
 app.get('/convert', (req, res) => {
-  log('Received request with headers: ' + JSON.stringify(req.headers));
-  log('Received request with query: ' + JSON.stringify(req.query));
-  log('Received request with body: ' + JSON.stringify(req.body));
+  logging.log('Received request with headers: ' + JSON.stringify(req.headers));
+  logging.log('Received request with query: ' + JSON.stringify(req.query));
+  logging.log('Received request with body: ' + JSON.stringify(req.body));
   const { from, to, _access_key } = req.query;
 
   if (from === 'ETH' && to === 'USD') {
@@ -39,5 +39,5 @@ app.get('/convert', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  log(`Server is running at http://localhost:${PORT}`);
+  logging.log(`Server is running at http://localhost:${PORT}`);
 });

@@ -2,6 +2,7 @@ import 'source-map-support/register';
 import path from 'path';
 import fs from 'fs';
 import { readOperationsRepository } from '@api3/operations/dist/utils/read-operations';
+import { logging } from '@api3/operations-utilities/dist/index';
 import { runWalletTasks } from './wallet-metrics';
 import { WalletConfig } from './types';
 import {
@@ -11,11 +12,10 @@ import {
   sendToOpsGenieLowLevel,
 } from './opsgenie-utils';
 import { go } from './promise-utils';
-import { debugLog } from './utils';
 
 export const getWalletConfig = (): WalletConfig => {
   const configPath = path.join(__dirname, '../config/walletConfig.json');
-  debugLog('Config Path:', configPath, fs.readdirSync(path.join(__dirname, '..')));
+  logging.debugLog('Config Path:', configPath, fs.readdirSync(path.join(__dirname, '..')));
 
   return JSON.parse(fs.readFileSync(configPath).toString('utf-8'));
 };

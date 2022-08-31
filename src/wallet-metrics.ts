@@ -5,7 +5,7 @@ import { parseEther } from 'ethers/lib/utils';
 import { OperationsRepository } from '@api3/operations';
 import { go } from '@api3/airnode-utilities';
 import { PROTOCOL_ID_PSP } from '@api3/operations/dist/utils/evm';
-import { evm } from '@api3/operations-utilities/dist/index';
+import { evm, logging } from '@api3/operations-utilities/dist';
 import { API3_XPUB } from './constants';
 import {
   ExtendedWalletWithMetadata,
@@ -17,7 +17,6 @@ import {
   OpsGenieConfig,
 } from './types';
 import { closeOpsGenieAlertWithAlias, sendToOpsGenieLowLevel } from './opsgenie-utils';
-import { logTrace } from './logging';
 import { settleAndCheckForPromiseRejections } from './promise-utils';
 
 export const getGlobalProvider = async (chains: ChainsConfig, opsGenieConfig: OpsGenieConfig, id: string) => {
@@ -348,7 +347,7 @@ export const getGlobalSponsors = async (walletConfig: WalletConfig): Promise<Glo
             sponsor,
           };
         } catch (e) {
-          logTrace('Unable to initialize provider');
+          logging.logTrace('Unable to initialize provider');
         }
 
         return null;

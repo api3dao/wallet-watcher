@@ -4,7 +4,7 @@ import { BigNumber } from 'ethers';
 import { keccak256 } from 'ethers/lib/utils';
 import { readOperationsRepository } from '@api3/operations/dist/utils/read-operations';
 import { OperationsRepository } from '@api3/operations';
-import { evm } from '@api3/operations-utilities/dist/index';
+import { evm, logging } from '@api3/operations-utilities/dist/index';
 import {
   GlobalConfig,
   Metric,
@@ -13,8 +13,7 @@ import {
   OutputMetric,
   OpsGenieConfig,
 } from './types';
-import { log, logTrace } from './logging';
-import { debugLog, doTimeout, getGlobalConfig } from './utils';
+import { doTimeout, getGlobalConfig } from './utils';
 import { go } from './promise-utils';
 
 /**
@@ -61,7 +60,7 @@ export const checkForOpsGenieApiKey = () => {
   }
 
   opsGenieKeyMissingWarningFirstUseComplete = true;
-  log('No OpsGenie key found in ENVs, this is probably a mistake.');
+  logging.log('No OpsGenie key found in ENVs, this is probably a mistake.');
 
   return true;
 };
@@ -185,7 +184,7 @@ export const listOpenOpsGenieAlerts = async (opsGenieConfig: OpsGenieConfig) => 
   );
 
   if (err || axiosResponse.status !== 200 || !axiosResponse?.data?.data) {
-    log(`Unable to list OpsGenie alerts`, 'ERROR', err as Error);
+    logging.log(`Unable to list OpsGenie alerts`, 'ERROR', err as Error);
     return;
   }
 
@@ -217,7 +216,7 @@ export const getOpenAlertsForAlias = async (alias: string, globalConfig: GlobalC
   });
 
   if (axiosResponse.status !== 200) {
-    log(`Unable to list OpsGenie alerts`, 'ERROR');
+    logging.log(`Unable to list OpsGenie alerts`, 'ERROR');
     return;
   }
 
@@ -248,14 +247,14 @@ export const closeOpsGenieAlertWithAlias = async (alias: string, opsGenieConfig:
   );
   promisedResults
     .filter((result) => result.status === 'rejected')
-    .map((rejection) => log('Alert close promise rejected', 'ERROR', rejection));
+    .map((rejection) => logging.log('Alert close promise rejected', 'ERROR', rejection));
 };
 
 export const sendToOpsGenieLowLevel = async (
   message: OpsGenieMessage,
   opsGenieConfig = getGlobalConfig().opsGenieConfig
 ) => {
-  log(message.message, 'INFO', message);
+  logging.log(message.message, 'INFO', message);
   if (checkForOpsGenieApiKey()) {
     return;
   }
@@ -291,7 +290,7 @@ export const sendToOpsGenieLowLevel = async (
       }
     }
   } catch (e) {
-    logTrace('Failed to create OpsGenie alert', 'ERROR', e);
+    logging.logTrace('Failed to create OpsGenie alert', 'ERROR', e);
   }
 };
 
@@ -316,11 +315,11 @@ export const sendOpsGenieHeartbeat = async (heartBeatServiceName: string, opsGen
       timeout: 10_000,
     })
       .catch((e) => {
-        logTrace('Failed to create OpsGenie heartbeat', e);
+        logging.logTrace('Failed to create OpsGenie heartbeat', e);
         resolve();
       })
       .then((data) => {
-        if (data) debugLog(JSON.stringify(data.data, null, 2));
+        if (data) logging.debugLog(JSON.stringify(data.data, null, 2));
         resolve();
       });
   });
@@ -351,7 +350,7 @@ export const sendToOpsGenie = async (
   }
 
   if (process.env.DEBUG) {
-    log(`ops genie payload`, 'INFO', potentialAlarmPayload);
+    logging.log(`ops genie payload`, 'INFO', potentialAlarmPayload);
   }
 
   await sendToOpsGenieLowLevel(potentialAlarmPayload);
@@ -361,7 +360,7 @@ const prettyPrintPercentage = (percentage: BigNumber) => {
   try {
     return (percentage.div(100000).toNumber() / Math.pow(10, 11)).toPrecision(3);
   } catch (e) {
-    logTrace('Failed to pretty-print percentage', 'ERROR', (e as Error).stack);
+    logging.logTrace('Failed to pretty-print percentage', 'ERROR', (e as Error).stack);
   }
 
   return '(out of range)';
@@ -384,7 +383,7 @@ export const evaluateThreshold = async (
   ) => {},
   globalConfig: GlobalConfig
 ) => {
-  debugLog(JSON.stringify(metric, null, 2));
+  logging.debugLog(JSON.stringify(metric, null, 2));
   const operationsRepository = readOperationsRepository();
   try {
     const compare = (funcName: 'lt' | 'gt' | 'eq', threshold: number | BigNumber, returnable: any) => {
@@ -427,7 +426,7 @@ export const evaluateThreshold = async (
         }
       }
       case Metric.API_BEACON_DEVIATION: {
-        debugLog(JSON.stringify(metric, null, 2));
+        logging.debugLog(JSON.stringify(metric, null, 2));
         if (!metric.value) {
           console.debug('Metric value undefined', metric);
           return;
@@ -456,7 +455,7 @@ export const evaluateThreshold = async (
         );
 
         if (actualValue.gt(evaluationThreshold)) {
-          debugLog('Inside evaluateThreshold where actualValue greater than evaluationThreshold');
+          logging.debugLog('Inside evaluateThreshold where actualValue greater than evaluationThreshold');
           const opsGenieMessage = {
             headline: `Beacon deviation exceeded: ${metric.metadata.name} on ${evm.resolveChainName(
               metric.metadata.chainId
