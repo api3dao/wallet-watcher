@@ -1,5 +1,5 @@
 import express from 'express';
-import { logging } from '@api3/operations-utilities/dist/index';
+import { logging } from '@api3/operations-utilities';
 import { serverETHValue, serverBTCValue } from '../setup/deployment';
 
 const PORT = 5000;

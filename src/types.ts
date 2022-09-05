@@ -1,6 +1,6 @@
 import { BigNumber } from 'ethers';
 import { WalletType } from '@api3/operations';
-import { OpsGenieConfig, TelemetryChainConfig } from '@api3/operations-utilities/dist';
+import { OpsGenieConfig, TelemetryChainConfig } from '@api3/operations-utilities';
 
 export interface WalletConfig {
   topUpMnemonic: string;

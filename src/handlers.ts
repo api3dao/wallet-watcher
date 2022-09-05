@@ -2,7 +2,7 @@ import 'source-map-support/register';
 import path from 'path';
 import fs from 'fs';
 import { readOperationsRepository } from '@api3/operations/dist/utils/read-operations';
-import { logging, opsGenie, promises } from '@api3/operations-utilities/dist/index';
+import { logging, opsGenie, promises } from '@api3/operations-utilities';
 import { runWalletTasks } from './wallet-metrics';
 import { WalletConfig } from './types';
 

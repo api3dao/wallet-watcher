@@ -1,4 +1,4 @@
-import { promises } from '@api3/operations-utilities/dist/index';
+import { promises } from '@api3/operations-utilities';
 import { walletTasksHandler } from './handlers';
 
 const functionMap: Record<string, Function> = {

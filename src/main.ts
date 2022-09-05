@@ -1,5 +1,5 @@
 import 'source-map-support/register';
-import { promises, evm } from '@api3/operations-utilities/dist/index';
+import { promises, evm } from '@api3/operations-utilities';
 import { walletTasksHandler } from './handlers';
 
 export const runAndHandleErrors = (fn: () => Promise<unknown>) => {

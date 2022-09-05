@@ -35,8 +35,7 @@
     "sls:remove": "sls remove --region us-east-1",
     "test": "jest --selectProjects unit",
     "test:e2e": "SILENCE_LOGGER=true jest --selectProjects e2e --runInBand",
-    "prepare": "husky install",
-    "postinstall": "git clone https://github.com/api3dao/operations-utilities.git operations-utilities; cd operations-utilities && git checkout initial && yarn install && yarn build && cd ..; cp -a operations-utilities/. node_modules/@api3/operations-utilities; rm -rf operations-utilities"
+    "prepare": "husky install"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.5",
@@ -78,6 +77,7 @@
     "@api3/airnode-protocol-v1": "^0.4.0",
     "@api3/airnode-utilities": "^0.6.0",
     "@api3/operations": "^0.0.1-44ceb5a8b2f269db9b84d892113d99f2d3de12e3",
+    "@api3/operations-utilities": "^0.0.1-e4bcdbd569e8802192b41f2bb88ed0cca7fc0c7b-1",
     "@ethersproject/experimental": "^5.5.0",
     "@slack/bolt": "^3.8.1",
     "axios": "^0.24.0",
