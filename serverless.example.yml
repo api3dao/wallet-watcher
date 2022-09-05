@@ -13,27 +13,12 @@ provider:
   name: aws
   region: us-east-1
   stage: production
-  runtime: nodejs14.x
+  runtime: nodejs16.x
   architecture: arm64
   lambdaHashingVersion: 20201221
   logRetentionInDays: 7
-  apiGateway:
-    restApiId: 'something'
-    restApiRootResourceId: 'something'
-    apiKeys:
-      - x-api-key: aCaCAXMq59sc7S4BWGRgBXDNPYBjVMYp
-  vpc:
-    securityGroupIds:
-      - sg-00000000000000000
-    subnetIds:
-      - subnet-00000000
   environment:
-    SLACK_WORKSPACE_TOKEN: ''
-    SLACK_BOT_TOKEN: ''
-    SLACK_SIGNING_SECRET: ''
-    SLACK_WEBHOOK_GENERAL_URL: ''
     OPSGENIE_API_KEY: ''
-    SLACK_WEBHOOK_HEARTBEAT_URL: ''
     DEBUG: true
 
 functions:
