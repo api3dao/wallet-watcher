@@ -19,7 +19,7 @@ export const getWalletConfig = (): WalletConfig => {
  * @param _event
  */
 export const walletWatcherHandler = async (_event: any = {}): Promise<any> => {
-  console.log('Starting Wallet Watcher...');
+  logging.log('Starting Wallet Watcher');
   const startedAt = new Date();
   const walletConfig = getWalletConfig();
   await opsGenie.cacheOpenAlerts(walletConfig.opsGenieConfig);
@@ -46,5 +46,5 @@ export const walletWatcherHandler = async (_event: any = {}): Promise<any> => {
   await opsGenie.sendOpsGenieHeartbeat('wallet-watcher', walletConfig.opsGenieConfig);
 
   const endedAt = new Date();
-  console.log(`Wallet Watcher run delta: ${(endedAt.getTime() - startedAt.getTime()) / 1000} s`);
+  logging.log(`Wallet Watcher run delta: ${(endedAt.getTime() - startedAt.getTime()) / 1000} s`);
 };

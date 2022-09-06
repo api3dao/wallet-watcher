@@ -5,38 +5,10 @@ import { parseEther } from 'ethers/lib/utils';
 import { OperationsRepository } from '@api3/operations';
 import { go } from '@api3/airnode-utilities';
 import { PROTOCOL_ID_PSP } from '@api3/operations/dist/utils/evm';
-import {
-  evm,
-  logging,
-  opsGenie,
-  promises,
-  TelemetryChainConfig,
-  OpsGenieConfig,
-  GlobalSponsor,
-} from '@api3/operations-utilities/dist';
+import { evm as nodeEvm } from '@api3/airnode-node';
+import { evm, opsGenie, promises, logging, GlobalSponsor } from '@api3/operations-utilities';
 import { API3_XPUB } from './constants';
 import { ExtendedWalletWithMetadata, WalletStatus, WalletConfig } from './types';
-
-export const getGlobalProvider = async (
-  chains: Record<string, TelemetryChainConfig>,
-  opsGenieConfig: OpsGenieConfig,
-  id: string
-) => {
-  if (chains[id]) {
-    return chains[id].rpc;
-  }
-
-  await opsGenie.sendToOpsGenieLowLevel(
-    {
-      message: `No provider found for chain id ${id}`,
-      alias: `no-provider-found-${id}`,
-      description: `No provider found for this chain ID, please check the config/walletConfig.json file`,
-      priority: 'P2',
-    },
-    opsGenieConfig
-  );
-  return '';
-};
 
 /**
  * Notes
@@ -45,7 +17,7 @@ export const getGlobalProvider = async (
  */
 
 /**
- * Returns a provider instance based on global config and a chain name
+ * Returns a provider instance based on wallet config and a chain name
  * @param walletConfig the result of parsing walletConfig.json
  * @param chainName the name of the chain
  */
@@ -61,26 +33,30 @@ export const getProvider = async (walletConfig: WalletConfig, chainName: string)
       },
       walletConfig.opsGenieConfig
     );
-  } else {
-    await opsGenie.closeOpsGenieAlertWithAlias(`invalid-chain-name-${chainName}`, walletConfig.opsGenieConfig);
+    return;
   }
-  const providerUrl = await getGlobalProvider(walletConfig.chains, walletConfig.opsGenieConfig, chainId!);
 
-  return new ethers.providers.StaticJsonRpcProvider(providerUrl, { chainId: parseInt(chainId!), name: chainName });
-};
+  await opsGenie.closeOpsGenieAlertWithAlias(`invalid-chain-name-${chainName}`, walletConfig.opsGenieConfig);
 
-// TODO replace this when it becomes available for import in upstream
-// The version we need appears to be in packages/airnode-node/src/evm/wallet.ts
-export const deriveWalletPathFromSponsorAddress = (sponsorAddress: string, protocolId = '1') => {
-  const sponsorAddressBN = ethers.BigNumber.from(ethers.utils.getAddress(sponsorAddress));
-  const paths = [...new Array(6)].map((_, idx) =>
-    sponsorAddressBN
-      .shr(31 * idx)
-      .mask(31)
-      .toString()
-  );
+  if (!walletConfig.chains[chainId]) {
+    await opsGenie.sendToOpsGenieLowLevel(
+      {
+        message: `No provider found for chain id ${chainId} (${chainName})`,
+        alias: `no-provider-found-${chainId}`,
+        description: `No provider found for this chain ID, please check the config/walletConfig.json file`,
+        priority: 'P2',
+      },
+      walletConfig.opsGenieConfig
+    );
+    return;
+  }
 
-  return `${protocolId}/${paths.join('/')}`;
+  await opsGenie.closeOpsGenieAlertWithAlias(`no-provider-found-${chainId}`, walletConfig.opsGenieConfig);
+
+  return new ethers.providers.StaticJsonRpcProvider(walletConfig.chains[chainId].rpc, {
+    chainId: parseInt(chainId!),
+    name: chainName,
+  });
 };
 
 /**
@@ -93,14 +69,10 @@ export const deriveWalletPathFromSponsorAddress = (sponsorAddress: string, proto
  */
 const derivePspAddress = (sponsor: string, xpub: string) => {
   const airnodeHdNode = ethers.utils.HDNode.fromExtendedKey(xpub);
-  return airnodeHdNode.derivePath(deriveWalletPathFromSponsorAddress(sponsor, PROTOCOL_ID_PSP)).address;
+  return airnodeHdNode.derivePath(nodeEvm.deriveWalletPathFromSponsorAddress(sponsor, PROTOCOL_ID_PSP)).address;
 };
 
-const determineWalletAddress = (
-  wallet: ExtendedWalletWithMetadata,
-  opsConfig: OperationsRepository,
-  sponsor: string
-): ExtendedWalletWithMetadata & { address: string } => {
+const determineWalletAddress = (wallet: ExtendedWalletWithMetadata, sponsor: string) => {
   switch (wallet.walletType) {
     case 'API3':
     case 'Provider':
@@ -118,10 +90,7 @@ const determineWalletAddress = (
  * @param walletConfig parsed walletConfig
  * @param operations the parsed operations repository
  */
-const getWalletsAndBalances = async (
-  walletConfig: WalletConfig,
-  operations: OperationsRepository
-): Promise<WalletStatus[]> => {
+const getWalletsAndBalances = async (walletConfig: WalletConfig, operations: OperationsRepository) => {
   const duplicatedWallets = Object.entries(operations.apis)
     .flatMap(([_apiName, api]) =>
       Object.entries(api.beacons).flatMap(([_beaconName, beaconValue]) =>
@@ -136,27 +105,36 @@ const getWalletsAndBalances = async (
         )
       )
     )
-    .map((wallet) => determineWalletAddress(wallet, operations, wallet.sponsor));
+    .map((wallet) => determineWalletAddress(wallet, wallet.sponsor));
 
   // There must be a chain in ops for this
   const walletsToAssess = uniqBy(duplicatedWallets, (item) => `${item.address}${item.chainName}`).filter((wallet) =>
     Object.values(operations.chains).find((chain) => chain.name === wallet.chainName)
   );
 
-  return (
-    await Promise.allSettled(
-      walletsToAssess.map(async (wallet) => ({
-        address: wallet.address,
-        walletType: wallet.walletType,
-        chainName: wallet.chainName,
-        balance: await (await getProvider(walletConfig, wallet.chainName)).getBalance(wallet.address),
-      }))
-    )
-  )
-    .filter((promise) => promise.status === 'fulfilled')
-    .map((promise) => {
-      return (promise as PromiseFulfilledResult<WalletStatus>).value;
-    });
+  const walletPromises = walletsToAssess.map(async (wallet) => {
+    const provider = await getProvider(walletConfig, wallet.chainName);
+    if (!provider) throw new Error(`Unable to initialize provider for chain (${wallet.chainName})`);
+
+    const balance = await provider.getBalance(wallet.address);
+    return {
+      address: wallet.address,
+      walletType: wallet.walletType,
+      chainName: wallet.chainName,
+      balance,
+    };
+  });
+
+  const walletBalances = await Promise.allSettled(walletPromises);
+
+  return walletBalances.reduce((acc: WalletStatus[], settledPromise: PromiseSettledResult<WalletStatus>) => {
+    if (settledPromise.status === 'rejected') {
+      logging.log(`Failed to get wallet balance.`, 'ERROR', `Error: ${settledPromise.reason.message}.`);
+      return acc;
+    }
+
+    return [...acc, settledPromise.value];
+  }, []);
 };
 
 /**
@@ -200,6 +178,9 @@ const checkAndFundWallet = async (
     );
 
     if (!(globalSponsor.lowBalance && globalSponsor.topUpAmount && globalSponsor.globalSponsorLowBalanceWarn)) {
+      logging.debugLog(
+        `Wallet configuration for chain (${wallet.chainName}) missing lowBalance, topUpAmount or globalSponsorLowBalanceWarn. Skipping threshold check.`
+      );
       return;
     }
 
@@ -313,7 +294,7 @@ export const getGas = async (globalSponsor: GlobalSponsor) => {
   if (globalSponsor.options.txType === 'legacy') {
     const [err, reportedGasPrice] = await go(() => globalSponsor.sponsor.getGasPrice(), { timeoutMs: 5_000 });
     if (err || !reportedGasPrice) {
-      console.error(err ? err.message : 'Failed to fetch gas price.', err ? err.stack : '');
+      logging.log(err ? err.message : 'Failed to fetch gas price.', 'ERROR', err ? err.stack : '');
       return undefined;
     }
 
@@ -334,55 +315,45 @@ export const getGas = async (globalSponsor: GlobalSponsor) => {
  *
  * @param walletConfig parsed walletConfig
  */
-export const getGlobalSponsors = async (walletConfig: WalletConfig): Promise<GlobalSponsor[]> => {
-  const promisedSponsors = await Promise.all(
-    Object.entries(walletConfig.chains)
-      .filter(([_chainId, chain]) => chain.globalSponsorLowBalanceWarn && chain.lowBalance && chain.topUpAmount)
-      .map(([chainId, chain]) => {
-        const sponsor = new NonceManager(
-          Wallet.fromMnemonic(walletConfig.topUpMnemonic).connect(
-            new ethers.providers.StaticJsonRpcProvider(chain.rpc, {
-              chainId: parseInt(chainId),
-              name: chainId,
-            })
-          )
-        );
+export const getGlobalSponsors = (walletConfig: WalletConfig) =>
+  Object.entries(walletConfig.chains).reduce((acc: GlobalSponsor[], [chainId, chain]) => {
+    if (!(chain.globalSponsorLowBalanceWarn && chain.lowBalance && chain.topUpAmount)) {
+      logging.debugLog(
+        `Wallet configuration for chain id ${chainId} missing lowBalance, topUpAmount or globalSponsorLowBalanceWarn. Skipping sponsor initialization.`
+      );
+      return acc;
+    }
 
-        try {
-          return {
-            chainId,
-            ...chain,
-            sponsor,
-          };
-        } catch (e) {
-          logging.logTrace('Unable to initialize provider');
-        }
+    const sponsor = new NonceManager(
+      Wallet.fromMnemonic(walletConfig.topUpMnemonic).connect(
+        new ethers.providers.StaticJsonRpcProvider(chain.rpc, {
+          chainId: parseInt(chainId),
+          name: chainId,
+        })
+      )
+    );
 
-        return null;
-      })
-  );
-
-  return promisedSponsors.filter((entry) => !!entry) as GlobalSponsor[];
-};
-
-export const topUpWallets = async (
-  wallets: WalletStatus[],
-  walletConfig: WalletConfig,
-  globalSponsors: GlobalSponsor[]
-) =>
-  await promises.settleAndCheckForPromiseRejections(
-    wallets.map((wallet) => checkAndFundWallet(wallet, walletConfig, globalSponsors))
-  );
+    return [
+      ...acc,
+      {
+        chainId,
+        ...chain,
+        sponsor,
+      },
+    ];
+  }, []);
 
 /**
- * Runs all wallet tasks, caching balances to reduce RPC calls
+ * Runs wallet watcher
  *
  * @param walletConfig parsed walletConfig
  * @param operations the parsed operations repository
  */
-export const runWalletTasks = async (walletConfig: WalletConfig, operations: OperationsRepository) => {
-  const globalSponsors = await getGlobalSponsors(walletConfig);
+export const runWalletWatcher = async (walletConfig: WalletConfig, operations: OperationsRepository) => {
+  const globalSponsors = getGlobalSponsors(walletConfig);
   const walletsAndBalances = await getWalletsAndBalances(walletConfig, operations);
 
-  await promises.settleAndCheckForPromiseRejections([topUpWallets(walletsAndBalances, walletConfig, globalSponsors)]);
+  await promises.settleAndCheckForPromiseRejections(
+    walletsAndBalances.map((wallet) => checkAndFundWallet(wallet, walletConfig, globalSponsors))
+  );
 };
