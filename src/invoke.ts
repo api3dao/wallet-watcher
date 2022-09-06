@@ -1,8 +1,8 @@
 import { promises } from '@api3/operations-utilities';
-import { walletTasksHandler } from './handlers';
+import { walletWatcherHandler } from './handlers';
 
 const functionMap: Record<string, Function> = {
-  walletTasksHandler: walletTasksHandler,
+  walletWatcherHandler: walletWatcherHandler,
 };
 
 const functionsToCall: string[] = process.env.FUNCTIONS?.split(',') || [];

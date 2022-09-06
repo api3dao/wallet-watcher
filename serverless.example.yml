@@ -22,8 +22,8 @@ provider:
     DEBUG: true
 
 functions:
-  wallets:
-    handler: src/handlers.walletTasksHandler
+  wallet-watcher:
+    handler: src/handlers.walletWatcherHandler
     timeout: 360
     memorySize: 128
     # environment:

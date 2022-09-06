@@ -13,7 +13,7 @@ should be populated prior to running the following commands:
 
 ```bash
 # Test your installation with
-yarn sls invoke local --function functionName
+yarn sls invoke local --function wallet-watcher
 ```
 
 With this config in place you can deploy:
