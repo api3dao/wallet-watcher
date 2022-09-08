@@ -1,11 +1,11 @@
-import { BigNumber, ethers, Wallet } from 'ethers';
+import { ethers, Wallet } from 'ethers';
 import { uniqBy } from 'lodash';
 import { NonceManager } from '@ethersproject/experimental';
 import { parseEther } from 'ethers/lib/utils';
 import { OperationsRepository } from '@api3/operations';
-import { go } from '@api3/airnode-utilities';
-import { PROTOCOL_ID_PSP } from '@api3/operations/dist/utils/evm';
+import { getGasPrice } from '@api3/airnode-utilities';
 import { evm as nodeEvm } from '@api3/airnode-node';
+import { PROTOCOL_IDS } from '@api3/airnode-protocol';
 import { evm, opsGenie, promises, logging, GlobalSponsor } from '@api3/operations-utilities';
 import { API3_XPUB } from './constants';
 import { ExtendedWalletWithMetadata, WalletStatus, WalletConfig } from './types';
@@ -67,9 +67,9 @@ export const getProvider = async (walletConfig: WalletConfig, chainName: string)
  * @param sponsor
  * @param xpub
  */
-const derivePspAddress = (sponsor: string, xpub: string) => {
+const derivePspAddress = (sponsor: string, xpub: string, protocolId: string) => {
   const airnodeHdNode = ethers.utils.HDNode.fromExtendedKey(xpub);
-  return airnodeHdNode.derivePath(nodeEvm.deriveWalletPathFromSponsorAddress(sponsor, PROTOCOL_ID_PSP)).address;
+  return airnodeHdNode.derivePath(nodeEvm.deriveWalletPathFromSponsorAddress(sponsor, protocolId)).address;
 };
 
 const determineWalletAddress = (wallet: ExtendedWalletWithMetadata, sponsor: string) => {
@@ -78,9 +78,9 @@ const determineWalletAddress = (wallet: ExtendedWalletWithMetadata, sponsor: str
     case 'Provider':
       return { ...wallet, address: wallet.address! };
     case 'API3-Sponsor':
-      return { ...wallet, address: derivePspAddress(sponsor, API3_XPUB) };
+      return { ...wallet, address: derivePspAddress(sponsor, API3_XPUB, PROTOCOL_IDS.PSP) };
     case 'Provider-Sponsor':
-      return { ...wallet, address: derivePspAddress(sponsor, wallet.providerXpub) };
+      return { ...wallet, address: derivePspAddress(sponsor, wallet.providerXpub, PROTOCOL_IDS.PSP) };
   }
 };
 
@@ -122,6 +122,7 @@ const getWalletsAndBalances = async (walletConfig: WalletConfig, operations: Ope
       walletType: wallet.walletType,
       chainName: wallet.chainName,
       balance,
+      provider,
     };
   });
 
@@ -152,6 +153,9 @@ const checkAndFundWallet = async (
 ) => {
   try {
     const chainId = evm.resolveChainId(wallet.chainName);
+    if (!chainId) {
+      return;
+    }
     const globalSponsor = globalSponsors.find((sponsor) => sponsor.chainId === chainId);
 
     // Close previous cycle alerts
@@ -204,7 +208,12 @@ const checkAndFundWallet = async (
       walletConfig.opsGenieConfig
     );
 
-    const gasOptions = await getGas(globalSponsor);
+    const [logs, gasTarget] = await getGasPrice(wallet.provider, walletConfig.chains[chainId].options);
+    logs.forEach((log) =>
+      logging.log(log.message, log.level === 'INFO' || log.level === 'ERROR' ? log.level : undefined)
+    );
+
+    const { gasLimit: _gasLimit, ...restGasTarget } = gasTarget;
 
     if (!process.env.WALLET_ENABLE_SEND_FUNDS) {
       await opsGenie.sendToOpsGenieLowLevel(
@@ -238,7 +247,7 @@ const checkAndFundWallet = async (
     const receipt = await globalSponsor.sponsor.sendTransaction({
       to: wallet.address,
       value: parseEther(globalSponsor.topUpAmount),
-      gasPrice: gasOptions?.gasPrice,
+      ...restGasTarget,
     });
     await receipt.wait(1);
 
@@ -277,36 +286,6 @@ const checkAndFundWallet = async (
     );
 
     return;
-  }
-};
-
-/**
- * Get the gas pricing to be used for a chain.
- * The idea is that a globalSponsor should have gas pricing overrides embedded in it from the config file
- *
- * @param globalSponsor an object representing a unique chain/wallet pair with associated gas pricing directives
- */
-export const getGas = async (globalSponsor: GlobalSponsor) => {
-  if (!globalSponsor.options) {
-    return undefined;
-  }
-
-  if (globalSponsor.options.txType === 'legacy') {
-    const [err, reportedGasPrice] = await go(() => globalSponsor.sponsor.getGasPrice(), { timeoutMs: 5_000 });
-    if (err || !reportedGasPrice) {
-      logging.log(err ? err.message : 'Failed to fetch gas price.', 'ERROR', err ? err.stack : '');
-      return undefined;
-    }
-
-    if (globalSponsor.options.legacyMultiplier) {
-      return {
-        gasPrice: reportedGasPrice.mul(BigNumber.from(globalSponsor.options.legacyMultiplier).mul(100)).div(100),
-      };
-    }
-
-    return {
-      gasPrice: reportedGasPrice,
-    };
   }
 };
 
