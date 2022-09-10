@@ -1,0 +1,76 @@
+{
+  "chains": {
+    "1": {
+      "rpc": "https://eth-mainnet.alchemyapi.io/v2/something",
+      "topUpAmount": "0.2",
+      "lowBalance": "0.1",
+      "globalSponsorLowBalanceWarn": "3",
+      "options": {
+        "gasPriceOracle": [
+          {
+            "gasPriceStrategy": "latestBlockPercentileGasPrice",
+            "percentile": 60,
+            "minTransactionCount": 20,
+            "pastToCompareInBlocks": 20,
+            "maxDeviationMultiplier": 2
+          },
+          {
+            "gasPriceStrategy": "providerRecommendedGasPrice",
+            "recommendedGasPriceMultiplier": 1.2
+          },
+          {
+            "gasPriceStrategy": "constantGasPrice",
+            "gasPrice": {
+              "value": 10,
+              "unit": "gwei"
+            }
+          }
+        ]
+      }
+    },
+    "3": {
+      "rpc": "https://eth-ropsten.alchemyapi.io/v2/something",
+      "topUpAmount": "0.16",
+      "lowBalance": "0.15",
+      "globalSponsorLowBalanceWarn": "2",
+      "options": {
+        "gasPriceOracle": [
+          {
+            "gasPriceStrategy": "latestBlockPercentileGasPrice",
+            "percentile": 60,
+            "minTransactionCount": 20,
+            "pastToCompareInBlocks": 20,
+            "maxDeviationMultiplier": 2
+          },
+          {
+            "gasPriceStrategy": "providerRecommendedGasPrice",
+            "recommendedGasPriceMultiplier": 1.2
+          },
+          {
+            "gasPriceStrategy": "constantGasPrice",
+            "gasPrice": {
+              "value": 10,
+              "unit": "gwei"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "topUpMnemonic": "test test tes...",
+  "opsGenieConfig": {
+    "apiKey": "opsgenie-api-key",
+    "responders": [
+      {
+        "type": "team",
+        "id": "a uuid value"
+      }
+    ]
+  },
+  "explorerUrls": {
+    "3": "https://ropsten.etherscan.io/",
+    "4": "https://rinkeby.etherscan.io/",
+    "5": "https://goerli.etherscan.io/",
+    "80001": "https://mumbai.polygonscan.com/"
+  }
+}

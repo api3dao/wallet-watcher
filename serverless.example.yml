@@ -1,0 +1,32 @@
+service: wallet-watcher
+
+plugins:
+  - serverless-plugin-typescript
+
+variablesResolutionMode: 20210326
+
+package:
+  patterns:
+    - ./config/walletConfig.json
+
+provider:
+  name: aws
+  region: us-east-1
+  stage: production
+  runtime: nodejs16.x
+  architecture: arm64
+  lambdaHashingVersion: 20201221
+  logRetentionInDays: 7
+  environment:
+    OPSGENIE_API_KEY: ''
+    DEBUG: true
+
+functions:
+  wallet-watcher:
+    handler: src/handlers.walletWatcherHandler
+    timeout: 360
+    memorySize: 128
+    # environment:
+    #    WALLET_ENABLE_SEND_FUNDS: true # Do not enable this in dev environments (!)
+    events:
+      - schedule: rate(5 minutes)
