@@ -21,8 +21,8 @@ import { ExtendedWalletWithMetadata, WalletStatus, WalletConfig } from './types'
  * @param walletConfig the result of parsing walletConfig.json
  * @param chainName the name of the chain
  */
-export const getProvider = async (walletConfig: WalletConfig, chainName: string) => {
-  const chainId = evm.resolveChainId(chainName);
+export const getProvider = async (walletConfig: WalletConfig, chainName: string, operations: OperationsRepository) => {
+  const chainId = evm.resolveChainId(chainName, operations as any); //TODO remove any type after operations dependency in operations-utilities is updated
   if (!chainId) {
     await opsGenie.sendToOpsGenieLowLevel(
       {
@@ -54,7 +54,7 @@ export const getProvider = async (walletConfig: WalletConfig, chainName: string)
   await opsGenie.closeOpsGenieAlertWithAlias(`no-provider-found-${chainId}`, walletConfig.opsGenieConfig);
 
   return new ethers.providers.StaticJsonRpcProvider(walletConfig.chains[chainId].rpc, {
-    chainId: parseInt(chainId!),
+    chainId: parseInt(chainId),
     name: chainName,
   });
 };
@@ -62,17 +62,16 @@ export const getProvider = async (walletConfig: WalletConfig, chainName: string)
 /**
  * Derives a sponsor wallet address
  *
- * Note/TODO: this may have to expose protocol ID as "2nd party" may be a different protocol ID
- *
  * @param sponsor
  * @param xpub
+ * @param protocolId
  */
-const derivePspAddress = (sponsor: string, xpub: string, protocolId: string) => {
+export const derivePspAddress = (sponsor: string, xpub: string, protocolId: string) => {
   const airnodeHdNode = ethers.utils.HDNode.fromExtendedKey(xpub);
   return airnodeHdNode.derivePath(nodeEvm.deriveWalletPathFromSponsorAddress(sponsor, protocolId)).address;
 };
 
-const determineWalletAddress = (wallet: ExtendedWalletWithMetadata, sponsor: string) => {
+export const determineWalletAddress = (wallet: ExtendedWalletWithMetadata, sponsor: string) => {
   switch (wallet.walletType) {
     case 'API3':
     case 'Provider':
@@ -90,7 +89,7 @@ const determineWalletAddress = (wallet: ExtendedWalletWithMetadata, sponsor: str
  * @param walletConfig parsed walletConfig
  * @param operations the parsed operations repository
  */
-const getWalletsAndBalances = async (walletConfig: WalletConfig, operations: OperationsRepository) => {
+export const getWalletsAndBalances = async (walletConfig: WalletConfig, operations: OperationsRepository) => {
   const duplicatedWallets = Object.entries(operations.apis)
     .flatMap(([_apiName, api]) =>
       Object.entries(api.beacons).flatMap(([_beaconName, beaconValue]) =>
@@ -113,7 +112,7 @@ const getWalletsAndBalances = async (walletConfig: WalletConfig, operations: Ope
   );
 
   const walletPromises = walletsToAssess.map(async (wallet) => {
-    const provider = await getProvider(walletConfig, wallet.chainName);
+    const provider = await getProvider(walletConfig, wallet.chainName, operations);
     if (!provider) throw new Error(`Unable to initialize provider for chain (${wallet.chainName})`);
 
     const balance = await provider.getBalance(wallet.address);
@@ -146,7 +145,7 @@ const getWalletsAndBalances = async (walletConfig: WalletConfig, operations: Ope
  * @param walletConfig parsed walletConfig
  * @param globalSponsors a set of wallets used as the source of funds for top-ups. Different wallets represent funds on different chains.
  */
-const checkAndFundWallet = async (
+export const checkAndFundWallet = async (
   wallet: WalletStatus,
   walletConfig: WalletConfig,
   globalSponsors: GlobalSponsor[]

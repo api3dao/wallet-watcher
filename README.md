@@ -33,3 +33,26 @@ The flag must be manually set by navigating through the AWS console (`lambda` > 
 `configuration` > `Environment variables`). While it is possible to configure the flag in `serverless.yml`, the purpose
 of the flag is to require that you explicitly enable this functionality and hopefully consider the consequences of doing
 so. This is to prevent scenarios where dev code sends real funds to unrecoverable addresses.
+
+## Configuration
+
+### `walletConfig.json`
+
+#### `chains`
+
+- `chains.<chainId>.rpc`: The RPC provider URL.
+- `chains.<chainId>.topUpAmount`: the amount to top up in the native currency. The value should be in full token units
+  (i.e. in ethers or matics).
+- `chains.<chainId>.lowBalance`: The wallet balance value below which a top up is triggered. The value should be in full
+  token units (i.e. in ethers or matics).
+- `chains.<chainId>.globalSponsorLowBalanceWarn`: The global top up wallet balance below which an alert will be
+  triggered. The value should be in full token units (i.e. in ethers or matics).
+- `chains.<chainId>.options`: The chain specific options used to get the gas price for top up transactions.
+
+- `topUpMnemonic`: The mnemonic of the top up wallet.
+
+- `opsGenieConfig.apiKey`: The Ops Genie api key.
+- `opsGenieConfig.responders[n].team`: The Ops Genie responder type.
+- `opsGenieConfig.responders[n].id`: The Ops Genie responder id.
+
+- `explorerUrls.<chainId>`: The explorer URL.

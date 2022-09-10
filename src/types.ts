@@ -29,5 +29,5 @@ export type ExtendedWalletWithMetadata = {
   providerXpub: string;
   sponsor: string;
   address?: string;
-  walletType: 'Provider' | 'API3' | 'Provider-Sponsor' | 'API3-Sponsor';
+  walletType: WalletType;
 };
