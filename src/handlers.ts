@@ -46,5 +46,5 @@ export const walletWatcherHandler = async (_event: any = {}): Promise<any> => {
   await opsGenie.sendOpsGenieHeartbeat('wallet-watcher', walletConfig.opsGenieConfig);
 
   const endedAt = new Date();
-  logging.log(`Wallet Watcher run delta: ${(endedAt.getTime() - startedAt.getTime()) / 1000} s`);
+  logging.log(`Wallet Watcher run delta: ${(endedAt.getTime() - startedAt.getTime()) / 1000}s`);
 };

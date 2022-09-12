@@ -116,6 +116,8 @@ export const getWalletsAndBalances = async (walletConfig: WalletConfig, operatio
     if (!provider) throw new Error(`Unable to initialize provider for chain (${wallet.chainName})`);
 
     const balance = await provider.getBalance(wallet.address);
+    if (!balance)
+      throw new Error(`Unable to get balance for chain (${wallet.chainName}) and address (${wallet.address})`);
     return {
       address: wallet.address,
       walletType: wallet.walletType,
@@ -148,10 +150,11 @@ export const getWalletsAndBalances = async (walletConfig: WalletConfig, operatio
 export const checkAndFundWallet = async (
   wallet: WalletStatus,
   walletConfig: WalletConfig,
-  globalSponsors: GlobalSponsor[]
+  globalSponsors: GlobalSponsor[],
+  operations: OperationsRepository
 ) => {
   try {
-    const chainId = evm.resolveChainId(wallet.chainName);
+    const chainId = evm.resolveChainId(wallet.chainName, operations as any); //TODO remove any type after operations dependency in operations-utilities is updated
     if (!chainId) {
       return;
     }
@@ -187,12 +190,13 @@ export const checkAndFundWallet = async (
       return;
     }
 
-    const threshold = parseEther(globalSponsor.lowBalance);
-    if (wallet.balance.gt(threshold)) {
+    const wallerBalanceThreshold = parseEther(globalSponsor.lowBalance);
+    if (wallet.balance.gt(wallerBalanceThreshold)) {
       return;
     }
 
-    if ((await globalSponsor.sponsor.getBalance()).lt(threshold)) {
+    const globalSponsorBalanceThreshold = parseEther(globalSponsor.globalSponsorLowBalanceWarn);
+    if ((await globalSponsor.sponsor.getBalance()).lt(globalSponsorBalanceThreshold)) {
       await opsGenie.sendToOpsGenieLowLevel(
         {
           message: `Low balance on primary top-up sponsor for chain ${wallet.chainName}`,
@@ -201,11 +205,12 @@ export const checkAndFundWallet = async (
         },
         walletConfig.opsGenieConfig
       );
+    } else {
+      await opsGenie.closeOpsGenieAlertWithAlias(
+        `low-master-sponsor-balance-${wallet.chainName}`,
+        walletConfig.opsGenieConfig
+      );
     }
-    await opsGenie.closeOpsGenieAlertWithAlias(
-      `low-master-sponsor-balance-${wallet.chainName}`,
-      walletConfig.opsGenieConfig
-    );
 
     const [logs, gasTarget] = await getGasPrice(wallet.provider, walletConfig.chains[chainId].options);
     logs.forEach((log) =>
@@ -222,13 +227,8 @@ export const checkAndFundWallet = async (
           description: [
             `DID NOT ACTUALLY SEND FUNDS! WALLET_ENABLE_SEND_FUNDS is not set`,
             `Type of wallet: ${wallet.walletType}`,
-            `Address: ${evm.resolveExplorerUrlByName(walletConfig.explorerUrls, wallet.chainName)}address/${
-              wallet.address
-            } )`,
-            `Transaction: ${evm.resolveExplorerUrlByName(
-              walletConfig.explorerUrls,
-              wallet.chainName
-            )}tx/not-applicable`,
+            `Address: ${walletConfig.explorerUrls[chainId]}address/${wallet.address} )`,
+            `Transaction: ${walletConfig.explorerUrls[chainId]}tx/not-applicable`,
           ].join('\n'),
           priority: 'P5',
         },
@@ -256,10 +256,8 @@ export const checkAndFundWallet = async (
         alias: `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
         description: [
           `Type of wallet: ${wallet.walletType}`,
-          `Address: ${evm.resolveExplorerUrlByName(walletConfig.explorerUrls, wallet.chainName)}address/${
-            wallet.address
-          } )`,
-          `Transaction: ${evm.resolveExplorerUrlByName(walletConfig.explorerUrls, wallet.chainName)}tx/${
+          `Address: ${walletConfig.explorerUrls[chainId]}address/${wallet.address} )`,
+          `Transaction: ${walletConfig.explorerUrls[chainId]}tx/${
             receipt?.hash ?? 'WALLET_ENABLE_SEND_FUNDS disabled'
           }`,
         ].join('\n'),
@@ -278,8 +276,7 @@ export const checkAndFundWallet = async (
         message: 'An error occurred while trying to up up a wallet',
         alias: `error-while-topping-up-wallet-${wallet.address}-${wallet.chainName}`,
         priority: 'P1',
-        description: `Error: ${e}
-      Stack Trace: ${(e as Error)?.stack}`,
+        description: `Error: ${e}\nStack Trace: ${(e as Error)?.stack}`,
       },
       walletConfig.opsGenieConfig
     );
@@ -332,6 +329,6 @@ export const runWalletWatcher = async (walletConfig: WalletConfig, operations: O
   const walletsAndBalances = await getWalletsAndBalances(walletConfig, operations);
 
   await promises.settleAndCheckForPromiseRejections(
-    walletsAndBalances.map((wallet) => checkAndFundWallet(wallet, walletConfig, globalSponsors))
+    walletsAndBalances.map((wallet) => checkAndFundWallet(wallet, walletConfig, globalSponsors, operations))
   );
 };
