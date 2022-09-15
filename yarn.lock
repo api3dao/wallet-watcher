@@ -59,20 +59,6 @@
     lodash "^4.17.21"
     yargs "^17.0.1"
 
-"@api3/airnode-admin@^0.8.0":
-  version "0.8.0"
-  resolved "https://registry.yarnpkg.com/@api3/airnode-admin/-/airnode-admin-0.8.0.tgz#c18f7bf72ca07a0291e62977ac6a64ebe0d47633"
-  integrity sha512-XQB/rO+7ZQq7+sl/vhKBB8GKg5tnt3xDnJNT0UnJ4UBy3XrAHAVKuLKnp7v2QQMagSwqRMwfNkxURSHt3yCdOg==
-  dependencies:
-    "@api3/airnode-abi" "^0.8.0"
-    "@api3/airnode-protocol" "^0.8.0"
-    "@api3/airnode-utilities" "^0.8.0"
-    "@api3/airnode-validator" "^0.8.0"
-    "@api3/promise-utils" "^0.3.0"
-    ethers "^5.7.0"
-    lodash "^4.17.21"
-    yargs "^17.5.1"
-
 "@api3/airnode-node@^0.8.0":
   version "0.8.0"
   resolved "https://registry.yarnpkg.com/@api3/airnode-node/-/airnode-node-0.8.0.tgz#01e61c1e14eb6cde4b282faf578c34e1fff6ba09"
@@ -94,11 +80,6 @@
     lodash "^4.17.21"
     yargs "^17.5.1"
     zod "^3.17.3"
-
-"@api3/airnode-protocol-v1@^0.4.0":
-  version "0.4.0"
-  resolved "https://registry.yarnpkg.com/@api3/airnode-protocol-v1/-/airnode-protocol-v1-0.4.0.tgz#29b7d542669820313e0d4425588345732e7c4a8f"
-  integrity sha512-vrI5vPjv1jFInU/eK07Z2/m1udbtABzHsO42Mx7gDe4tDLKYLvP/SzvrwjSJfaOFPfsKjoNVNtArlLkaaHr20Q==
 
 "@api3/airnode-protocol@^0.7.5":
   version "0.7.5"
