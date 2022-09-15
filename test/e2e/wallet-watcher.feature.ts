@@ -10,6 +10,10 @@ import * as walletWatcher from '../../src/wallet-watcher';
 import * as fixtures from '../fixtures';
 import { ChainsConfig } from '../../src/types';
 
+// Jest version 27 has a bug where jest.setTimeout does not work correctly inside describe or test blocks
+// https://github.com/facebook/jest/issues/11607
+jest.setTimeout(60_000);
+
 const oldEnv = process.env;
 
 // Mock operations repository data
@@ -37,9 +41,6 @@ describe('walletWatcher', () => {
 
   beforeEach(async () => {
     process.env = oldEnv;
-    // Ensure that Ops Genie requests are not made
-    delete process.env.OPSGENIE_API_KEY;
-
     // Reset the local hardhat network state for each test
     await hre.network.provider.send('hardhat_reset');
     jest.restoreAllMocks();
