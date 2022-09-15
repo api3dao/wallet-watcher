@@ -152,6 +152,14 @@
     lodash "^4.17.21"
     zod "^3.17.3"
 
+"@api3/ois@^1.1.2":
+  version "1.1.2"
+  resolved "https://registry.yarnpkg.com/@api3/ois/-/ois-1.1.2.tgz#104dbbe38c864868fa99a7c979230ba992651ee3"
+  integrity sha512-kKF/GtmVewrdhKd/mnAX/UCGs508dcqP/Np/FG7B8I3fX6LAH1Gg3SGXiIQZFQ0V9u8CStsf7CpZj9BVLLri+Q==
+  dependencies:
+    lodash "^4.17.21"
+    zod "^3.18.0"
+
 "@api3/operations-utilities@^0.0.1-e4bcdbd569e8802192b41f2bb88ed0cca7fc0c7b-1":
   version "0.0.1-e4bcdbd569e8802192b41f2bb88ed0cca7fc0c7b-1"
   resolved "https://registry.yarnpkg.com/@api3/operations-utilities/-/operations-utilities-0.0.1-e4bcdbd569e8802192b41f2bb88ed0cca7fc0c7b-1.tgz#a5059e385380e4008c8750d3b21b59b2dd404b67"
