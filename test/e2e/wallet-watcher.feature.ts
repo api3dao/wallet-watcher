@@ -10,7 +10,6 @@ import * as walletWatcher from '../../src/wallet-watcher';
 import * as fixtures from '../fixtures';
 import { ChainsConfig } from '../../src/types';
 
-process.env.OPSGENIE_API_KEY = 'test';
 const oldEnv = process.env;
 
 // Mock operations repository data
@@ -38,6 +37,9 @@ describe('walletWatcher', () => {
 
   beforeEach(async () => {
     process.env = oldEnv;
+    // Ensure that Ops Genie requests are not made
+    delete process.env.OPSGENIE_API_KEY;
+
     // Reset the local hardhat network state for each test
     await hre.network.provider.send('hardhat_reset');
     jest.restoreAllMocks();
