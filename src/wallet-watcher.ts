@@ -196,10 +196,7 @@ export const checkAndFundWallet = async (
     }
 
     const globalSponsorBalanceThreshold = parseEther(globalSponsor.globalSponsorLowBalanceWarn);
-    console.log('await globalSponsor.sponsor.getAddress()', await globalSponsor.sponsor.getAddress());
-    console.log('await globalSponsor.sponsor.getBalance()', await globalSponsor.sponsor.getBalance());
     if ((await globalSponsor.sponsor.getBalance()).lt(globalSponsorBalanceThreshold)) {
-      console.log('LOW HERE');
       await opsGenie.sendToOpsGenieLowLevel(
         {
           message: `Low balance on primary top-up sponsor for chain ${wallet.chainName}`,
