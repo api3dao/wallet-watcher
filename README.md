@@ -41,7 +41,7 @@ so. This is to prevent scenarios where dev code sends real funds to unrecoverabl
 #### `chains`
 
 - `chains.<chainId>.rpc`: The RPC provider URL.
-- `chains.<chainId>.topUpAmount`: the amount to top up in the native currency. The value should be in full token units
+- `chains.<chainId>.topUpAmount`: the amount to top up in the native token. The value should be in full token units
   (i.e. in ethers or matics).
 - `chains.<chainId>.lowBalance`: The wallet balance value below which a top up is triggered. The value should be in full
   token units (i.e. in ethers or matics).
@@ -52,7 +52,9 @@ so. This is to prevent scenarios where dev code sends real funds to unrecoverabl
 - `topUpMnemonic`: The mnemonic of the top up wallet.
 
 - `opsGenieConfig.apiKey`: The Ops Genie api key.
-- `opsGenieConfig.responders[n].team`: The Ops Genie responder type.
-- `opsGenieConfig.responders[n].id`: The Ops Genie responder id.
+- `opsGenieConfig.responders[n].team` (optional): The Ops Genie responder type. If left undefined this will be inferred
+  from the `Ops Genie api key`.
+- `opsGenieConfig.responders[n].id` (optional): The Ops Genie responder id. If left undefined this will be inferred from
+  the `Ops Genie api key`.
 
 - `explorerUrls.<chainId>`: The explorer URL.
