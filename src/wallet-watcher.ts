@@ -190,8 +190,8 @@ export const checkAndFundWallet = async (
       return;
     }
 
-    const wallerBalanceThreshold = parseEther(globalSponsor.lowBalance);
-    if (wallet.balance.gt(wallerBalanceThreshold)) {
+    const walletBalanceThreshold = parseEther(globalSponsor.lowBalance);
+    if (wallet.balance.gt(walletBalanceThreshold)) {
       return;
     }
 
