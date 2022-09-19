@@ -1,10 +1,35 @@
-export const buildWalletConfig = () => ({
+import { WalletConfig } from '../../src/types';
+
+export const buildWalletConfig = (): WalletConfig => ({
   chains: {
     '31337': {
       rpc: 'http://127.0.0.1:8545/',
       topUpAmount: '0.1',
       lowBalance: '0.2',
       globalSponsorLowBalanceWarn: '3',
+      options: {
+        fulfillmentGasLimit: 123456, // The wallet-watcher doesn't currently use this but it is required in the ChainOptions type
+        gasPriceOracle: [
+          {
+            gasPriceStrategy: 'latestBlockPercentileGasPrice',
+            percentile: 60,
+            minTransactionCount: 20,
+            pastToCompareInBlocks: 20,
+            maxDeviationMultiplier: 2,
+          },
+          {
+            gasPriceStrategy: 'providerRecommendedGasPrice',
+            recommendedGasPriceMultiplier: 1.2,
+          },
+          {
+            gasPriceStrategy: 'constantGasPrice',
+            gasPrice: {
+              value: 10,
+              unit: 'gwei',
+            },
+          },
+        ],
+      },
     },
   },
   topUpMnemonic: 'test test test test test test test test test test test junk',

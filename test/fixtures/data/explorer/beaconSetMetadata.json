@@ -1,0 +1,8 @@
+{
+  "0x3d8eb96b1319b92000e0fbd92f888745cd454d58391d824f6b520320015194fe": {
+    "category": "Cryptocurrency",
+    "pricingCoverage": { "ropsten": "test-pricing-set-one" },
+    "logos": ["BTC", "USD"],
+    "prefix": "$"
+  }
+}
