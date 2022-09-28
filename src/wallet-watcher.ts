@@ -55,7 +55,7 @@ export const determineWalletAddress = (wallet: Wallet, sponsor: string) => {
       return { ...wallet, address: deriveSponsorWalletAddress(sponsor, API3_XPUB, PROTOCOL_IDS.PSP) };
     case 'Provider-Sponsor':
       return { ...wallet, address: deriveSponsorWalletAddress(sponsor, wallet.providerXpub, PROTOCOL_IDS.PSP) };
-    case 'API3-Airseeker':
+    case 'Airseeker':
       return { ...wallet, address: deriveSponsorWalletAddress(sponsor, wallet.providerXpub, PROTOCOL_IDS.AIRSEEKER) };
   }
 };

@@ -22,7 +22,7 @@ export interface WalletStatus extends Wallet {
   provider: providers.StaticJsonRpcProvider;
 }
 
-type WalletType = 'Provider' | 'API3' | 'Provider-Sponsor' | 'API3-Sponsor' | 'API3-Airseeker';
+type WalletType = 'Provider' | 'API3' | 'Provider-Sponsor' | 'API3-Sponsor' | 'Airseeker';
 
 export interface Wallet {
   walletType: WalletType;

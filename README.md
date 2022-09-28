@@ -58,3 +58,21 @@ so. This is to prevent scenarios where dev code sends real funds to unrecoverabl
   the `Ops Genie api key`.
 
 - `explorerUrls.<chainId>`: The explorer URL.
+
+### `wallets.json`
+
+- `<chainId>[]`: A list of wallets to check and top up for a chain.
+
+- `<chainId>[n].walletType`: The type of wallet with the following options:
+  - `Provider`: the value for the `address` field in the same object is used for top ups.
+  - `API3`: the value for the `address` field in the same object is used for top ups.
+  - `Provider-Sponsor`: the destination address is derived from the `sponsor` using the `providerXpub` and `PSP`
+    protocol id.
+  - `API3-Sponsor`: the destination address is derived from the `sponsor` using the `API3_XPUB` and PSP protocol id.
+  - `Airseeker`: the destination address is derived from the `sponsor` using the `providerXpub` and `AIRSEEKER` protocol
+    id.
+- `<chainId>[n].address` (required only if `walletType` is `Provider` or `API3`): The destination wallet to be used
+  directly without deriving from the sponsor wallet.
+- `<chainId>[n].apiName` (optional): The name of the API provider.
+- `<chainId>[n].providerXpub`: The extended public key of the sponsor address.
+- `<chainId>[n].sponsor`: The sponsor address to derive the destination wallet.
