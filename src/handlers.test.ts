@@ -1,22 +1,20 @@
-import { mockReadFileSync } from '../test/mock-utils';
-import { join } from 'path';
 import { ethers } from 'ethers';
 import * as ethersExperimental from '@ethersproject/experimental';
 import { opsGenie } from '@api3/operations-utilities';
 import * as nodeUtils from '@api3/airnode-utilities';
-import * as operationsUtils from '@api3/operations/dist/utils/read-operations';
 import * as walletHandlers from './handlers';
 import * as walletWatcher from './wallet-watcher';
 import * as fixtures from '../test/fixtures';
 
-const operationsRepository = operationsUtils.readOperationsRepository(
-  join(__dirname, '..', 'test', 'fixtures', 'data')
-);
+jest.setTimeout(60_000);
+
 process.env.OPSGENIE_API_KEY = 'test';
 const oldEnv = process.env;
 
 describe('walletWatcherHandler', () => {
-  const walletConfig = fixtures.buildWalletConfig();
+  const config = fixtures.buildConfig();
+  const wallets = fixtures.buildWallets();
+  const networks = fixtures.buildNetworks();
   const sponsorBalance = ethers.utils.parseEther('10');
   const balance = ethers.utils.parseEther('0');
   const gasTarget = {
@@ -69,9 +67,10 @@ describe('walletWatcherHandler', () => {
 
   it('closes ops genie alert for successful run', async () => {
     process.env.WALLET_ENABLE_SEND_FUNDS = 'true';
-    mockReadFileSync('walletConfig.json', JSON.stringify(walletConfig));
+    jest.spyOn(walletHandlers, 'loadConfig').mockImplementationOnce(() => config);
+    jest.spyOn(walletHandlers, 'loadWallets').mockImplementationOnce(() => wallets);
+    jest.spyOn(walletWatcher, 'getNetworks').mockImplementationOnce(() => networks);
 
-    jest.spyOn(operationsUtils, 'readOperationsRepository').mockImplementation(() => operationsRepository);
     const nonceManagerSendTransactionSpy = jest.spyOn(ethersExperimental.NonceManager.prototype, 'sendTransaction');
     jest.spyOn(ethersExperimental.NonceManager.prototype, 'getBalance').mockImplementation(async () => sponsorBalance);
     jest.spyOn(ethers.providers.StaticJsonRpcProvider.prototype, 'getBalance').mockImplementation(async () => balance);
@@ -82,16 +81,15 @@ describe('walletWatcherHandler', () => {
 
     await walletHandlers.walletWatcherHandler({});
 
-    expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
-      'serverless-wallet-watcher',
-      walletConfig.opsGenieConfig
-    );
-    expect(sendOpsGenieHeartbeatSpy).toHaveBeenCalledWith('wallet-watcher', walletConfig.opsGenieConfig);
+    expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith('serverless-wallet-watcher', config.opsGenieConfig);
+    expect(sendOpsGenieHeartbeatSpy).toHaveBeenCalledWith('wallet-watcher', config.opsGenieConfig);
   });
 
   it('sends ops genie alert for if the run throws an error', async () => {
     process.env.WALLET_ENABLE_SEND_FUNDS = 'true';
-    mockReadFileSync('walletConfig.json', JSON.stringify(walletConfig));
+    jest.spyOn(walletHandlers, 'loadConfig').mockImplementationOnce(() => config);
+    jest.spyOn(walletHandlers, 'loadWallets').mockImplementationOnce(() => wallets);
+    jest.spyOn(walletWatcher, 'getNetworks').mockImplementationOnce(() => networks);
 
     const error = new Error('Unexpected error during runWalletWatcher');
     jest.spyOn(walletWatcher, 'runWalletWatcher').mockImplementation(() => {
@@ -105,8 +103,8 @@ describe('walletWatcherHandler', () => {
         alias: 'serverless-wallet-watcher',
         description: (error as Error).stack,
       },
-      walletConfig.opsGenieConfig
+      config.opsGenieConfig
     );
-    expect(sendOpsGenieHeartbeatSpy).toHaveBeenCalledWith('wallet-watcher', walletConfig.opsGenieConfig);
+    expect(sendOpsGenieHeartbeatSpy).toHaveBeenCalledWith('wallet-watcher', config.opsGenieConfig);
   });
 });

@@ -1,49 +1,57 @@
 import 'source-map-support/register';
 import path from 'path';
 import fs from 'fs';
-import { readOperationsRepository } from '@api3/operations/dist/utils/read-operations';
-import { logging, opsGenie, promises } from '@api3/operations-utilities';
+import { logging, opsGenie } from '@api3/operations-utilities';
+import { go } from '@api3/promise-utils';
 import { runWalletWatcher } from './wallet-watcher';
-import { WalletConfig } from './types';
+import { Config, Wallets } from './types';
 
-export const getWalletConfig = (): WalletConfig => {
-  const configPath = path.join(__dirname, '../config/walletConfig.json');
-  logging.debugLog('Config Path:', configPath, fs.readdirSync(path.join(__dirname, '..')));
+export const loadConfig = (): Config => {
+  const configPath = path.join(__dirname, '../config/config.json');
+  logging.debugLog('Reading file at path:', configPath);
+
+  return JSON.parse(fs.readFileSync(configPath).toString('utf-8'));
+};
+
+export const loadWallets = (): Wallets => {
+  const configPath = path.join(__dirname, '../config/wallets.json');
+  logging.debugLog('Reading file at path:', configPath);
 
   return JSON.parse(fs.readFileSync(configPath).toString('utf-8'));
 };
 
 /**
- * Tops up wallets
+ * Check wallet balances and tops up those below the threshold
  *
  * @param _event
  */
-export const walletWatcherHandler = async (_event: any = {}): Promise<any> => {
+export const walletWatcherHandler = async (_event: any = {}) => {
   logging.log('Starting Wallet Watcher');
   const startedAt = new Date();
-  const walletConfig = getWalletConfig();
-  await opsGenie.cacheOpenAlerts(walletConfig.opsGenieConfig);
+  const config = loadConfig();
+  const wallets = loadWallets();
+  await opsGenie.cacheOpenAlerts(config.opsGenieConfig);
 
-  const [err] = await promises.go(() => runWalletWatcher(walletConfig, readOperationsRepository()), {
-    timeoutMs: 120_000,
+  const goResult = await go(() => runWalletWatcher(config, wallets), {
+    totalTimeoutMs: 120_000,
     retries: 3,
-    retryDelayMs: 5_000,
+    delay: { type: 'static', delayMs: 5_000 },
   });
 
-  if (err) {
+  if (!goResult.success) {
     await opsGenie.sendToOpsGenieLowLevel(
       {
-        message: `Wallet Watcher encountered an error after multiple tries: ${err}`,
+        message: `Wallet Watcher encountered an error after multiple tries: ${goResult.error}`,
         alias: 'serverless-wallet-watcher',
-        description: (err as Error).stack,
+        description: goResult.error.stack,
       },
-      walletConfig.opsGenieConfig
+      config.opsGenieConfig
     );
   } else {
-    await opsGenie.closeOpsGenieAlertWithAlias('serverless-wallet-watcher', walletConfig.opsGenieConfig);
+    await opsGenie.closeOpsGenieAlertWithAlias('serverless-wallet-watcher', config.opsGenieConfig);
   }
 
-  await opsGenie.sendOpsGenieHeartbeat('wallet-watcher', walletConfig.opsGenieConfig);
+  await opsGenie.sendOpsGenieHeartbeat('wallet-watcher', config.opsGenieConfig);
 
   const endedAt = new Date();
   logging.log(`Wallet Watcher run delta: ${(endedAt.getTime() - startedAt.getTime()) / 1000}s`);

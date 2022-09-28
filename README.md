@@ -3,13 +3,13 @@
 The wallet watcher loads and ingests the contents of the [operations repository](https://github.com/api3dao/operations)
 and based on the deployed beacons found in it monitors and tops up associated operational wallets.
 
-If a wallet's balance is below the `lowBalance` configuration field in `config/walletConfig.json` the function will top
-up the wallet with the amount specified in the `topUpAmount` field in the same file.
+If a wallet's balance is below the `lowBalance` configuration field in `config/config.json` the function will top up the
+wallet with the amount specified in the `topUpAmount` field in the same file.
 
 ## Deployment
 
-AWS credentials should be exported as environment variables and both `config/walletConfig.json` and `serverless.yml`
-should be populated prior to running the following commands:
+AWS credentials should be exported as environment variables and both `config/config.json` and `serverless.yml` should be
+populated prior to running the following commands:
 
 ```bash
 # Test your installation with
@@ -36,7 +36,7 @@ so. This is to prevent scenarios where dev code sends real funds to unrecoverabl
 
 ## Configuration
 
-### `walletConfig.json`
+### `config.json`
 
 #### `chains`
 
