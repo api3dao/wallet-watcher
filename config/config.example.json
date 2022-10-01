@@ -6,6 +6,7 @@
       "lowBalance": "0.1",
       "globalSponsorLowBalanceWarn": "3",
       "options": {
+        "fulfillmentGasLimit": 500000,
         "gasPriceOracle": [
           {
             "gasPriceStrategy": "latestBlockPercentileGasPrice",
@@ -34,6 +35,7 @@
       "lowBalance": "0.15",
       "globalSponsorLowBalanceWarn": "2",
       "options": {
+        "fulfillmentGasLimit": 500000,
         "gasPriceOracle": [
           {
             "gasPriceStrategy": "latestBlockPercentileGasPrice",
@@ -63,7 +65,8 @@
     "responders": [
       {
         "type": "team",
-        "id": "a uuid value"
+        "id": "a uuid value",
+        "name": "name"
       }
     ]
   },

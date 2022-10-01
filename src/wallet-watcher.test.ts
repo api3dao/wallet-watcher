@@ -14,6 +14,7 @@ const oldEnv = process.env;
 describe('walletWatcher', () => {
   const wallets = fixtures.buildWallets();
   const config = fixtures.buildConfig();
+  console.log('CONFIG', config);
   const networks = fixtures.buildNetworks();
   const apiName = 'api3';
   const chainName = 'localhost';
@@ -104,15 +105,6 @@ describe('walletWatcher', () => {
       // Stringifying results as a work around for 'Received: serializes to the same string' error (https://github.com/facebook/jest/issues/8475)
       expect(JSON.stringify(globalSponsors)).toEqual(JSON.stringify([{ chainId, ...config.chains[chainId], sponsor }]));
     });
-
-    it('does not return global sponsor if missing configuration', () => {
-      const configOnce = {
-        ...config,
-        chains: { [chainId]: { rpc: 'http://127.0.0.1:8545/' } },
-      } as any;
-      const globalSponsors = walletWatcher.getGlobalSponsors(configOnce);
-      expect(globalSponsors).toEqual([]);
-    });
   });
 
   describe('deriveSponsorWalletAddress', () => {
@@ -130,15 +122,12 @@ describe('walletWatcher', () => {
     const walletTypes: WalletType[] = ['Provider', 'API3'];
     walletTypes.forEach((walletType) =>
       it(`returns wallet for type ${walletType}`, () => {
-        const wallet = walletWatcher.determineWalletAddress(
-          {
-            walletType,
-            address: topUpWalletAddress,
-            providerXpub: providerXpub,
-            sponsor: sponsorAddress,
-          },
-          sponsorAddress
-        );
+        const wallet = walletWatcher.determineWalletAddress({
+          walletType,
+          address: topUpWalletAddress,
+          providerXpub: providerXpub,
+          sponsor: sponsorAddress,
+        });
         expect(wallet).toEqual({
           address: topUpWalletAddress,
           providerXpub:
@@ -156,15 +145,12 @@ describe('walletWatcher', () => {
     sponsorWalletTypes.forEach(({ walletType, xpub }) =>
       it(`returns wallet for type ${walletType}`, () => {
         const derivedAddress = walletWatcher.deriveSponsorWalletAddress(sponsorAddress, xpub, '2');
-        const wallet = walletWatcher.determineWalletAddress(
-          {
-            walletType,
-            address: topUpWalletAddress,
-            providerXpub: providerXpub,
-            sponsor: sponsorAddress,
-          },
-          sponsorAddress
-        );
+        const wallet = walletWatcher.determineWalletAddress({
+          walletType,
+          address: topUpWalletAddress,
+          providerXpub: providerXpub,
+          sponsor: sponsorAddress,
+        });
         expect(wallet).toEqual({
           address: derivedAddress,
           providerXpub:
@@ -177,6 +163,8 @@ describe('walletWatcher', () => {
   });
 
   describe('getWalletsAndBalances', () => {
+    const { sponsor: _sponsor, ...providerWallet } = wallet;
+
     it('returns wallet with balances', async () => {
       const balance = ethers.utils.parseEther('12');
       jest
@@ -184,7 +172,7 @@ describe('walletWatcher', () => {
         .mockImplementation(async () => balance);
       const walletsAndBalances = await walletWatcher.getWalletsAndBalances(config, wallets);
 
-      expect(walletsAndBalances).toEqual([{ ...wallet, provider, balance }]);
+      expect(walletsAndBalances).toEqual([{ ...providerWallet, provider, balance }]);
     });
 
     it('handles invalid providers', async () => {
@@ -230,7 +218,7 @@ describe('walletWatcher', () => {
         .mockImplementation(async () => balance);
       const walletsAndBalances = await walletWatcher.getWalletsAndBalances(configOnce, wallets);
 
-      expect(walletsAndBalances).toEqual([{ ...wallet, provider, balance, apiName, chainId }]);
+      expect(walletsAndBalances).toEqual([{ ...providerWallet, provider, balance, apiName, chainId }]);
     });
 
     it('handles failing to get balance', async () => {
@@ -254,7 +242,6 @@ describe('walletWatcher', () => {
             address: addressOnce,
             providerXpub:
               'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
-            sponsor: '0x9fEe9F24ab79adacbB51af82fb82CFb9D818c6d9',
           } as Wallet,
         ],
       };
@@ -268,7 +255,7 @@ describe('walletWatcher', () => {
         });
       const walletsAndBalances = await walletWatcher.getWalletsAndBalances(configOnce, walletsOnce);
 
-      expect(walletsAndBalances).toEqual([{ ...wallet, provider, balance }]);
+      expect(walletsAndBalances).toEqual([{ ...providerWallet, provider, balance }]);
     });
   });
 

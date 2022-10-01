@@ -5,9 +5,9 @@ import { parseEther } from 'ethers/lib/utils';
 import { getGasPrice } from '@api3/airnode-utilities';
 import { evm as nodeEvm } from '@api3/airnode-node';
 import { PROTOCOL_IDS, networks } from '@api3/airnode-protocol';
-import { opsGenie, promises, logging, GlobalSponsor } from '@api3/operations-utilities';
+import { opsGenie, promises, logging } from '@api3/operations-utilities';
 import { API3_XPUB } from './constants';
-import { Wallet, WalletStatus, Config, Wallets } from './types';
+import { Wallet, WalletStatus, Config, Wallets, GlobalSponsor } from './types';
 
 /**
  * Notes
@@ -45,18 +45,21 @@ export const deriveSponsorWalletAddress = (sponsor: string, xpub: string, protoc
   return airnodeHdNode.derivePath(nodeEvm.deriveWalletPathFromSponsorAddress(sponsor, protocolId)).address;
 };
 
-export const determineWalletAddress = (wallet: Wallet, sponsor: string) => {
+export const determineWalletAddress = (wallet: Wallet) => {
   switch (wallet.walletType) {
     case 'API3':
     case 'Provider':
       return { ...wallet, address: wallet.address! };
     // Replace destination addresses for derived PSP and Airseeker wallets
     case 'API3-Sponsor':
-      return { ...wallet, address: deriveSponsorWalletAddress(sponsor, API3_XPUB, PROTOCOL_IDS.PSP) };
+      return { ...wallet, address: deriveSponsorWalletAddress(wallet.sponsor, API3_XPUB, PROTOCOL_IDS.PSP) };
     case 'Provider-Sponsor':
-      return { ...wallet, address: deriveSponsorWalletAddress(sponsor, wallet.providerXpub, PROTOCOL_IDS.PSP) };
+      return { ...wallet, address: deriveSponsorWalletAddress(wallet.sponsor, wallet.providerXpub, PROTOCOL_IDS.PSP) };
     case 'Airseeker':
-      return { ...wallet, address: deriveSponsorWalletAddress(sponsor, wallet.providerXpub, PROTOCOL_IDS.AIRSEEKER) };
+      return {
+        ...wallet,
+        address: deriveSponsorWalletAddress(wallet.sponsor, wallet.providerXpub, PROTOCOL_IDS.AIRSEEKER),
+      };
   }
 };
 
@@ -70,7 +73,7 @@ export const getWalletsAndBalances = async (config: Config, wallets: Wallets) =>
   const networkMap = getNetworks();
   const walletsWithDerivedAddresses = Object.entries(wallets).flatMap(([chainId, wallets]) =>
     wallets.flatMap((wallet) => ({
-      ...determineWalletAddress(wallet, wallet.sponsor),
+      ...determineWalletAddress(wallet),
       chainId,
       chainName: networkMap[chainId].name,
     }))
@@ -141,13 +144,6 @@ export const checkAndFundWallet = async (wallet: WalletStatus, config: Config, g
       `no-sponsor-${wallet.address}-${wallet.chainName}`,
       config.opsGenieConfig
     );
-
-    if (!(globalSponsor.lowBalance && globalSponsor.topUpAmount && globalSponsor.globalSponsorLowBalanceWarn)) {
-      logging.debugLog(
-        `Wallet configuration for chain (${wallet.chainName}) missing lowBalance, topUpAmount or globalSponsorLowBalanceWarn. Skipping threshold check.`
-      );
-      return;
-    }
 
     const walletBalanceThreshold = parseEther(globalSponsor.lowBalance);
     if (wallet.balance.gt(walletBalanceThreshold)) {
@@ -251,13 +247,6 @@ export const checkAndFundWallet = async (wallet: WalletStatus, config: Config, g
  */
 export const getGlobalSponsors = (config: Config) =>
   Object.entries(config.chains).reduce((acc: GlobalSponsor[], [chainId, chain]) => {
-    if (!(chain.globalSponsorLowBalanceWarn && chain.lowBalance && chain.topUpAmount)) {
-      logging.debugLog(
-        `Wallet configuration for chain id ${chainId} missing lowBalance, topUpAmount or globalSponsorLowBalanceWarn. Skipping sponsor initialization.`
-      );
-      return acc;
-    }
-
     const sponsor = new NonceManager(
       ethers.Wallet.fromMnemonic(config.topUpMnemonic).connect(
         new ethers.providers.StaticJsonRpcProvider(chain.rpc, {
