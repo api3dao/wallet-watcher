@@ -39,6 +39,7 @@ export const buildConfig = (): Config => ({
       {
         type: 'team',
         id: 'a uuid value',
+        name: 'name',
       },
     ],
   },
@@ -55,7 +56,6 @@ export const buildWallets = (): Wallets => ({
       address: '0xC26f10e1b37A1E7A7De266FeF0c19533489C3e75',
       providerXpub:
         'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
-      sponsor: '0x9fEe9F24ab79adacbB51af82fb82CFb9D818c6d9',
     },
   ],
 });

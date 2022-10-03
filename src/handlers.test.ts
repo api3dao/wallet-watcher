@@ -4,6 +4,7 @@ import { opsGenie } from '@api3/operations-utilities';
 import * as nodeUtils from '@api3/airnode-utilities';
 import * as walletHandlers from './handlers';
 import * as walletWatcher from './wallet-watcher';
+import * as configFunctions from './config';
 import * as fixtures from '../test/fixtures';
 
 jest.setTimeout(60_000);
@@ -67,8 +68,8 @@ describe('walletWatcherHandler', () => {
 
   it('closes ops genie alert for successful run', async () => {
     process.env.WALLET_ENABLE_SEND_FUNDS = 'true';
-    jest.spyOn(walletHandlers, 'loadConfig').mockImplementationOnce(() => config);
-    jest.spyOn(walletHandlers, 'loadWallets').mockImplementationOnce(() => wallets);
+    jest.spyOn(configFunctions, 'loadConfig').mockImplementationOnce(() => config);
+    jest.spyOn(configFunctions, 'loadWallets').mockImplementationOnce(() => wallets);
     jest.spyOn(walletWatcher, 'getNetworks').mockImplementationOnce(() => networks);
 
     const nonceManagerSendTransactionSpy = jest.spyOn(ethersExperimental.NonceManager.prototype, 'sendTransaction');
@@ -87,8 +88,8 @@ describe('walletWatcherHandler', () => {
 
   it('sends ops genie alert for if the run throws an error', async () => {
     process.env.WALLET_ENABLE_SEND_FUNDS = 'true';
-    jest.spyOn(walletHandlers, 'loadConfig').mockImplementationOnce(() => config);
-    jest.spyOn(walletHandlers, 'loadWallets').mockImplementationOnce(() => wallets);
+    jest.spyOn(configFunctions, 'loadConfig').mockImplementationOnce(() => config);
+    jest.spyOn(configFunctions, 'loadWallets').mockImplementationOnce(() => wallets);
     jest.spyOn(walletWatcher, 'getNetworks').mockImplementationOnce(() => networks);
 
     const error = new Error('Unexpected error during runWalletWatcher');
