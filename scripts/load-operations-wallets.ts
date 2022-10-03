@@ -4,11 +4,13 @@ import { uniqBy } from 'lodash';
 import { readOperationsRepository } from '@api3/operations/dist/utils/read-operations';
 import { evm } from '@api3/operations-utilities';
 import { determineWalletAddress } from '../src/wallet-watcher';
-import { Wallet, Wallets } from '../src/types';
+import { Wallet, Wallets, EvmAddress } from '../src/types';
 
 type WalletWithMetadata = Wallet & {
   chainId: string;
   chainName: string;
+  address: EvmAddress;
+  providerXpub: string;
 };
 
 /**
@@ -32,7 +34,7 @@ export const loadOperationsWallets = () => {
         )
       )
     )
-    .map((wallet) => determineWalletAddress(wallet, wallet.sponsor)) as WalletWithMetadata[];
+    .map((wallet) => determineWalletAddress(wallet as WalletWithMetadata)) as WalletWithMetadata[];
 
   // There must be a chain in ops for this
   const walletsToAssess = uniqBy(
