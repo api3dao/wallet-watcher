@@ -43,49 +43,39 @@ export const walletTypeSchema = z.union([
   z.literal('Airseeker'),
 ]);
 
-const providerWalletSchema = z
-  .object({
-    walletType: z.literal('Provider'),
-    address: config.evmAddressSchema,
-    providerXpub: z.string(),
-    apiName: z.string().optional(),
-  })
-  .strict();
+const providerWalletSchema = z.object({
+  walletType: z.literal('Provider'),
+  address: config.evmAddressSchema,
+  providerXpub: z.string(),
+  apiName: z.string().optional(),
+});
 
-const api3WalletSchema = z
-  .object({
-    walletType: z.literal('API3'),
-    address: config.evmAddressSchema,
-    apiName: z.string().optional(),
-  })
-  .strict();
+const api3WalletSchema = z.object({
+  walletType: z.literal('API3'),
+  address: config.evmAddressSchema,
+  apiName: z.string().optional(),
+});
 
-const providerSponsorWalletSchema = z
-  .object({
-    walletType: z.literal('Provider-Sponsor'),
-    sponsor: config.evmAddressSchema,
-    providerXpub: z.string(),
-    apiName: z.string().optional(),
-  })
-  .strict();
+const providerSponsorWalletSchema = z.object({
+  walletType: z.literal('Provider-Sponsor'),
+  sponsor: config.evmAddressSchema,
+  providerXpub: z.string(),
+  apiName: z.string().optional(),
+});
 
-const api3SponsorWalletSchema = z
-  .object({
-    walletType: z.literal('API3-Sponsor'),
-    sponsor: config.evmAddressSchema,
-    providerXpub: z.string(),
-    apiName: z.string().optional(),
-  })
-  .strict();
+const api3SponsorWalletSchema = z.object({
+  walletType: z.literal('API3-Sponsor'),
+  sponsor: config.evmAddressSchema,
+  providerXpub: z.string(),
+  apiName: z.string().optional(),
+});
 
-const airseekerSponsorWalletSchema = z
-  .object({
-    walletType: z.literal('Airseeker'),
-    sponsor: config.evmAddressSchema,
-    providerXpub: z.string(),
-    apiName: z.string().optional(),
-  })
-  .strict();
+const airseekerSponsorWalletSchema = z.object({
+  walletType: z.literal('Airseeker'),
+  sponsor: config.evmAddressSchema,
+  providerXpub: z.string(),
+  apiName: z.string().optional(),
+});
 
 export const walletSchema = z.discriminatedUnion('walletType', [
   providerWalletSchema,
