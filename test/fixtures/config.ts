@@ -1,6 +1,6 @@
-import { WalletConfig } from '../../src/types';
+import { Config, Wallets } from '../../src/types';
 
-export const buildWalletConfig = (): WalletConfig => ({
+export const buildConfig = (): Config => ({
   chains: {
     '31337': {
       rpc: 'http://127.0.0.1:8545/',
@@ -45,4 +45,17 @@ export const buildWalletConfig = (): WalletConfig => ({
   explorerUrls: {
     '31337': 'https://explorer.test.com/',
   },
+});
+
+export const buildWallets = (): Wallets => ({
+  '31337': [
+    {
+      apiName: 'api3',
+      walletType: 'Provider',
+      address: '0xC26f10e1b37A1E7A7De266FeF0c19533489C3e75',
+      providerXpub:
+        'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
+      sponsor: '0x9fEe9F24ab79adacbB51af82fb82CFb9D818c6d9',
+    },
+  ],
 });

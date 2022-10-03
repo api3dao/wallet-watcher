@@ -1,32 +1,28 @@
-import { join } from 'path';
 import { ethers } from 'ethers';
 import * as ethersExperimental from '@ethersproject/experimental';
 import { opsGenie } from '@api3/operations-utilities';
 import * as nodeUtils from '@api3/airnode-utilities';
 import { WalletType } from '@api3/operations';
-import * as operationsUtils from '@api3/operations/dist/utils/read-operations';
 import * as walletWatcher from './wallet-watcher';
 import * as fixtures from '../test/fixtures';
 import * as constants from '../src/constants';
-import { ChainsConfig } from '../src/types';
+import { ChainsConfig, Wallet } from '../src/types';
 
 process.env.OPSGENIE_API_KEY = 'test';
 const oldEnv = process.env;
 
-// Mock operations repository data
-const operationsRepository = operationsUtils.readOperationsRepository(
-  join(__dirname, '..', 'test', 'fixtures', 'data')
-);
-
 describe('walletWatcher', () => {
-  const walletConfig = fixtures.buildWalletConfig();
-  const chainName = 'local';
+  const wallets = fixtures.buildWallets();
+  const config = fixtures.buildConfig();
+  const networks = fixtures.buildNetworks();
+  const apiName = 'api3';
+  const chainName = 'localhost';
   const chainId = '31337';
   const providerXpub =
     'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK';
   const sponsorAddress = '0x9fEe9F24ab79adacbB51af82fb82CFb9D818c6d9';
   const topUpWalletAddress = '0xC26f10e1b37A1E7A7De266FeF0c19533489C3e75';
-  const provider = new ethers.providers.StaticJsonRpcProvider(walletConfig.chains[chainId].rpc, {
+  const provider = new ethers.providers.StaticJsonRpcProvider(config.chains[chainId].rpc, {
     chainId: parseInt(chainId),
     name: chainName,
   });
@@ -34,19 +30,23 @@ describe('walletWatcher', () => {
     walletType: 'Provider' as WalletType,
     address: topUpWalletAddress,
     chainName,
+    chainId,
+    apiName,
+    providerXpub,
+    sponsor: sponsorAddress,
   };
   const sponsorBalance = ethers.utils.parseEther('10');
   const balance = ethers.utils.parseEther('0');
-  const walletAndBalance = { ...wallet, provider, balance };
+  const walletAndBalance = { ...wallet, chainName, chainId, provider, balance };
   const sponsor = new ethersExperimental.NonceManager(
-    ethers.Wallet.fromMnemonic(walletConfig.topUpMnemonic).connect(
-      new ethers.providers.StaticJsonRpcProvider(walletConfig.chains[chainId].rpc, {
+    ethers.Wallet.fromMnemonic(config.topUpMnemonic).connect(
+      new ethers.providers.StaticJsonRpcProvider(config.chains[chainId].rpc, {
         chainId: parseInt(chainId),
         name: chainId,
       })
     )
   );
-  const globalSponsors = [{ chainId, ...walletConfig.chains[chainId], sponsor }];
+  const globalSponsors = [{ chainId, ...config.chains[chainId], sponsor }];
   const gasTarget = {
     type: 0,
     gasPrice: ethers.utils.parseUnits('10', 'gwei'),
@@ -84,67 +84,17 @@ describe('walletWatcher', () => {
       console.log('listOpenOpsGenieAlerts was called');
       return '' as any;
     });
-  });
 
-  describe('getProvider', () => {
-    it('returns provider', async () => {
-      // jest.spyOn(operationsUtils, 'readOperationsRepository').mockImplementation(() => operationsRepository);
-      const providerResult = await walletWatcher.getProvider(walletConfig, chainName, operationsRepository);
-
-      expect(providerResult).toEqual(provider);
-      expect(sendToOpsGenieLowLevelSpy).not.toHaveBeenCalled();
-      // Closes open alerts
-      expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
-        `invalid-chain-name-${chainName}`,
-        walletConfig.opsGenieConfig
-      );
-      expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
-        `no-provider-found-${chainId}`,
-        walletConfig.opsGenieConfig
-      );
-    });
-
-    it('sends ops genie alert for invalid chain', async () => {
-      const invalidChainName = 'invalid-chain';
-      const provider = await walletWatcher.getProvider(walletConfig, invalidChainName, operationsRepository);
-
-      expect(sendToOpsGenieLowLevelSpy).toHaveBeenCalledWith(
-        {
-          message: 'Invalid chain name',
-          alias: `invalid-chain-name-${invalidChainName}`,
-          description: `Check that the chains specified in the ops repository and in config/walletConfig.json match`,
-          priority: 'P3',
-        },
-        walletConfig.opsGenieConfig
-      );
-      expect(provider).toBeUndefined();
-    });
-
-    it('sends ops genie alert for missing chain in walletConfig', async () => {
-      process.env.OPSGENIE_API_KEY = 'test';
-      const missingChainName = 'ropsten';
-      const missingChainId = '3';
-      const provider = await walletWatcher.getProvider(walletConfig, missingChainName, operationsRepository);
-
-      expect(sendToOpsGenieLowLevelSpy).toHaveBeenCalledWith(
-        {
-          message: `No provider found for chain id ${missingChainId} (${missingChainName})`,
-          alias: `no-provider-found-${missingChainId}`,
-          description: `No provider found for this chain ID, please check the config/walletConfig.json file`,
-          priority: 'P2',
-        },
-        walletConfig.opsGenieConfig
-      );
-      expect(provider).toBeUndefined();
-    });
+    // Mock airnode-protocol networks
+    jest.spyOn(walletWatcher, 'getNetworks').mockImplementationOnce(() => networks);
   });
 
   describe('getGlobalSponsors', () => {
     it('returns global sponsors', () => {
-      const globalSponsors = walletWatcher.getGlobalSponsors(walletConfig);
+      const globalSponsors = walletWatcher.getGlobalSponsors(config);
       const sponsor = new ethersExperimental.NonceManager(
-        ethers.Wallet.fromMnemonic(walletConfig.topUpMnemonic).connect(
-          new ethers.providers.StaticJsonRpcProvider(walletConfig.chains[chainId].rpc, {
+        ethers.Wallet.fromMnemonic(config.topUpMnemonic).connect(
+          new ethers.providers.StaticJsonRpcProvider(config.chains[chainId].rpc, {
             chainId: parseInt(chainId),
             name: chainId,
           })
@@ -152,27 +102,25 @@ describe('walletWatcher', () => {
       );
 
       // Stringifying results as a work around for 'Received: serializes to the same string' error (https://github.com/facebook/jest/issues/8475)
-      expect(JSON.stringify(globalSponsors)).toEqual(
-        JSON.stringify([{ chainId, ...walletConfig.chains[chainId], sponsor }])
-      );
+      expect(JSON.stringify(globalSponsors)).toEqual(JSON.stringify([{ chainId, ...config.chains[chainId], sponsor }]));
     });
 
     it('does not return global sponsor if missing configuration', () => {
-      const walletConfigOnce = {
-        ...walletConfig,
+      const configOnce = {
+        ...config,
         chains: { [chainId]: { rpc: 'http://127.0.0.1:8545/' } },
       } as any;
-      const globalSponsors = walletWatcher.getGlobalSponsors(walletConfigOnce);
+      const globalSponsors = walletWatcher.getGlobalSponsors(configOnce);
       expect(globalSponsors).toEqual([]);
     });
   });
 
-  describe('derivePspAddress', () => {
+  describe('deriveSponsorWalletAddress', () => {
     it('derives sponsor address', () => {
       const xpub =
         'xpub6Cqm1pKEocHJDZ6Ghdau2wmwaCxRUfnmFUrEvuTcsjj6c4bVMuq8MCypeJxMeYNgCupj23hrrpkWmdrTB7Q5MpGFMFtVuyYx7nGSRXhc8rH';
-      const wallet = ethers.Wallet.fromMnemonic(walletConfig.topUpMnemonic);
-      const sponsorAddress = walletWatcher.derivePspAddress(wallet.address, xpub, '2');
+      const wallet = ethers.Wallet.fromMnemonic(config.topUpMnemonic);
+      const sponsorAddress = walletWatcher.deriveSponsorWalletAddress(wallet.address, xpub, '2');
 
       expect(sponsorAddress).toEqual('0x31D50143dC863Feab4b35834415B7b3F9f6f6B35');
     });
@@ -186,7 +134,6 @@ describe('walletWatcher', () => {
           {
             walletType,
             address: topUpWalletAddress,
-            chainName,
             providerXpub: providerXpub,
             sponsor: sponsorAddress,
           },
@@ -197,7 +144,6 @@ describe('walletWatcher', () => {
           providerXpub:
             'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
           walletType,
-          chainName,
           sponsor: sponsorAddress,
         });
       })
@@ -209,12 +155,11 @@ describe('walletWatcher', () => {
     ];
     sponsorWalletTypes.forEach(({ walletType, xpub }) =>
       it(`returns wallet for type ${walletType}`, () => {
-        const derivedAddress = walletWatcher.derivePspAddress(sponsorAddress, xpub, '2');
+        const derivedAddress = walletWatcher.deriveSponsorWalletAddress(sponsorAddress, xpub, '2');
         const wallet = walletWatcher.determineWalletAddress(
           {
             walletType,
             address: topUpWalletAddress,
-            chainName,
             providerXpub: providerXpub,
             sponsor: sponsorAddress,
           },
@@ -225,7 +170,6 @@ describe('walletWatcher', () => {
           providerXpub:
             'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
           walletType,
-          chainName,
           sponsor: sponsorAddress,
         });
       })
@@ -238,16 +182,16 @@ describe('walletWatcher', () => {
       jest
         .spyOn(ethers.providers.StaticJsonRpcProvider.prototype, 'getBalance')
         .mockImplementation(async () => balance);
-      const walletsAndBalances = await walletWatcher.getWalletsAndBalances(walletConfig, operationsRepository);
+      const walletsAndBalances = await walletWatcher.getWalletsAndBalances(config, wallets);
 
       expect(walletsAndBalances).toEqual([{ ...wallet, provider, balance }]);
     });
 
     it('handles invalid providers', async () => {
-      const walletConfigOnce = {
-        ...walletConfig,
+      const configOnce = {
+        ...config,
         chains: {
-          ...walletConfig.chains,
+          ...config.chains,
           ['123']: {
             rpc: 'http://127.0.0.1:8545/',
             topUpAmount: '0.1',
@@ -284,30 +228,45 @@ describe('walletWatcher', () => {
       jest
         .spyOn(ethers.providers.StaticJsonRpcProvider.prototype, 'getBalance')
         .mockImplementation(async () => balance);
-      const walletsAndBalances = await walletWatcher.getWalletsAndBalances(walletConfigOnce, operationsRepository);
+      const walletsAndBalances = await walletWatcher.getWalletsAndBalances(configOnce, wallets);
 
-      expect(walletsAndBalances).toEqual([{ ...wallet, provider, balance }]);
+      expect(walletsAndBalances).toEqual([{ ...wallet, provider, balance, apiName, chainId }]);
     });
 
     it('handles failing to get balance', async () => {
-      const walletConfigOnce = {
-        ...walletConfig,
+      const configOnce = {
+        ...config,
         chains: {
-          ...walletConfig.chains,
+          ...config.chains,
           ['3']: {
             rpc: 'https://ropsten-provider.com/',
           } as any,
         } as ChainsConfig,
       };
 
+      const addressOnce = '0xfailure';
+      const walletsOnce = {
+        ...wallets,
+        '3': [
+          {
+            apiName: 'api3',
+            walletType: 'Provider',
+            address: addressOnce,
+            providerXpub:
+              'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
+            sponsor: '0x9fEe9F24ab79adacbB51af82fb82CFb9D818c6d9',
+          } as Wallet,
+        ],
+      };
+
       const balance = ethers.utils.parseEther('12');
       jest
         .spyOn(ethers.providers.StaticJsonRpcProvider.prototype, 'getBalance')
-        .mockImplementationOnce(() => {
-          throw new Error('Error getting balance.');
-        })
-        .mockImplementation(async () => balance);
-      const walletsAndBalances = await walletWatcher.getWalletsAndBalances(walletConfigOnce, operationsRepository);
+        .mockImplementation(async (address: any) => {
+          if (address === addressOnce) throw new Error('Error getting balance.');
+          return balance;
+        });
+      const walletsAndBalances = await walletWatcher.getWalletsAndBalances(configOnce, walletsOnce);
 
       expect(walletsAndBalances).toEqual([{ ...wallet, provider, balance }]);
     });
@@ -326,24 +285,24 @@ describe('walletWatcher', () => {
         .mockImplementation(async () => [[{ message: 'Returned gas price', level: 'INFO' }], gasTarget] as any);
       nonceManagerSendTransactionSpy.mockImplementation(async () => transactionResponseMock);
 
-      await walletWatcher.checkAndFundWallet(walletAndBalance, walletConfig, globalSponsors, operationsRepository);
+      await walletWatcher.checkAndFundWallet(walletAndBalance, config, globalSponsors);
 
       expect(nonceManagerSendTransactionSpy).toHaveBeenCalledWith({
         to: wallet.address,
-        value: ethers.utils.parseEther(walletConfig.chains[chainId].topUpAmount!),
+        value: ethers.utils.parseEther(config.chains[chainId].topUpAmount!),
         ...gasTarget,
       });
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `no-sponsor-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `low-master-sponsor-balance-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(sendToOpsGenieLowLevelSpy).toHaveBeenCalledWith(
         {
@@ -351,16 +310,16 @@ describe('walletWatcher', () => {
           alias: `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
           description: [
             `Type of wallet: ${wallet.walletType}`,
-            `Address: ${walletConfig.explorerUrls[chainId]}address/${wallet.address} )`,
-            `Transaction: ${walletConfig.explorerUrls[chainId]}tx/${'0xabc'}`,
+            `Address: ${config.explorerUrls[chainId]}address/${wallet.address} )`,
+            `Transaction: ${config.explorerUrls[chainId]}tx/${'0xabc'}`,
           ].join('\n'),
           priority: 'P5',
         },
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `error-while-topping-up-wallet-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
     });
 
@@ -376,24 +335,24 @@ describe('walletWatcher', () => {
         .mockImplementation(async () => [[{ message: 'Returned gas price', level: 'INFO' }], gasTarget] as any);
       nonceManagerSendTransactionSpy.mockImplementation(async () => transactionResponseMock);
 
-      await walletWatcher.checkAndFundWallet(walletAndBalance, walletConfig, globalSponsors, operationsRepository);
+      await walletWatcher.checkAndFundWallet(walletAndBalance, config, globalSponsors);
 
       expect(nonceManagerSendTransactionSpy).not.toHaveBeenCalled();
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `no-sponsor-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `low-master-sponsor-balance-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `error-while-topping-up-wallet-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
     });
 
@@ -409,16 +368,16 @@ describe('walletWatcher', () => {
       nonceManagerSendTransactionSpy.mockImplementation(async () => transactionResponseMock);
       const walletAndBalanceOnce = { ...walletAndBalance, balance: ethers.utils.parseEther('3') };
 
-      await walletWatcher.checkAndFundWallet(walletAndBalanceOnce, walletConfig, globalSponsors, operationsRepository);
+      await walletWatcher.checkAndFundWallet(walletAndBalanceOnce, config, globalSponsors);
 
       expect(nonceManagerSendTransactionSpy).not.toHaveBeenCalled();
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `no-sponsor-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
     });
 
@@ -434,7 +393,7 @@ describe('walletWatcher', () => {
       nonceManagerSendTransactionSpy.mockImplementation(async () => transactionResponseMock);
       const walletAndBalanceOnce = { ...walletAndBalance, balance: ethers.utils.parseEther('3') };
 
-      await walletWatcher.checkAndFundWallet(walletAndBalanceOnce, walletConfig, [], operationsRepository);
+      await walletWatcher.checkAndFundWallet(walletAndBalanceOnce, config, []);
 
       expect(nonceManagerSendTransactionSpy).not.toHaveBeenCalled();
       expect(sendToOpsGenieLowLevelSpy).toHaveBeenCalledWith(
@@ -443,11 +402,11 @@ describe('walletWatcher', () => {
           alias: `no-sponsor-${wallet.address}-${wallet.chainName}`,
           priority: 'P1',
         },
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
     });
 
@@ -461,21 +420,21 @@ describe('walletWatcher', () => {
         .spyOn(nodeUtils, 'getGasPrice')
         .mockImplementation(async () => [[{ message: 'Returned gas price', level: 'INFO' }], gasTarget] as any);
       nonceManagerSendTransactionSpy.mockImplementation(async () => transactionResponseMock);
-      const walletConfigOnce = {
-        ...walletConfig,
+      const configOnce = {
+        ...config,
         chains: { [chainId]: { rpc: 'http://127.0.0.1:8545/' } },
       } as any;
 
-      await walletWatcher.checkAndFundWallet(walletAndBalance, walletConfigOnce, globalSponsors, operationsRepository);
+      await walletWatcher.checkAndFundWallet(walletAndBalance, configOnce, globalSponsors);
 
       expect(nonceManagerSendTransactionSpy).not.toHaveBeenCalled();
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `no-sponsor-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
     });
 
@@ -494,24 +453,24 @@ describe('walletWatcher', () => {
         throw txError;
       });
 
-      await walletWatcher.checkAndFundWallet(walletAndBalance, walletConfig, globalSponsors, operationsRepository);
+      await walletWatcher.checkAndFundWallet(walletAndBalance, config, globalSponsors);
 
       expect(nonceManagerSendTransactionSpy).toHaveBeenCalledWith({
         to: wallet.address,
-        value: ethers.utils.parseEther(walletConfig.chains[chainId].topUpAmount!),
+        value: ethers.utils.parseEther(config.chains[chainId].topUpAmount!),
         ...gasTarget,
       });
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `no-sponsor-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `low-master-sponsor-balance-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(sendToOpsGenieLowLevelSpy).toHaveBeenCalledWith(
         {
@@ -520,7 +479,7 @@ describe('walletWatcher', () => {
           priority: 'P1',
           description: `Error: ${txError}\nStack Trace: ${(txError as Error)?.stack}`,
         },
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
     });
 
@@ -536,20 +495,20 @@ describe('walletWatcher', () => {
         .mockImplementation(async () => [[{ message: 'Returned gas price', level: 'INFO' }], gasTarget] as any);
       nonceManagerSendTransactionSpy.mockImplementation(async () => transactionResponseMock);
 
-      await walletWatcher.checkAndFundWallet(walletAndBalance, walletConfig, globalSponsors, operationsRepository);
+      await walletWatcher.checkAndFundWallet(walletAndBalance, config, globalSponsors);
 
       expect(nonceManagerSendTransactionSpy).toHaveBeenCalledWith({
         to: wallet.address,
-        value: ethers.utils.parseEther(walletConfig.chains[chainId].topUpAmount!),
+        value: ethers.utils.parseEther(config.chains[chainId].topUpAmount!),
         ...gasTarget,
       });
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `no-sponsor-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(sendToOpsGenieLowLevelSpy).toHaveBeenCalledWith(
         {
@@ -557,11 +516,11 @@ describe('walletWatcher', () => {
           alias: `low-master-sponsor-balance-${wallet.chainName}`,
           priority: 'P3',
         },
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(closeOpsGenieAlertWithAliasSpy).not.toHaveBeenCalledWith(
         `low-master-sponsor-balance-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(sendToOpsGenieLowLevelSpy).toHaveBeenCalledWith(
         {
@@ -569,16 +528,16 @@ describe('walletWatcher', () => {
           alias: `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
           description: [
             `Type of wallet: ${wallet.walletType}`,
-            `Address: ${walletConfig.explorerUrls[chainId]}address/${wallet.address} )`,
-            `Transaction: ${walletConfig.explorerUrls[chainId]}tx/${'0xabc'}`,
+            `Address: ${config.explorerUrls[chainId]}address/${wallet.address} )`,
+            `Transaction: ${config.explorerUrls[chainId]}tx/${'0xabc'}`,
           ].join('\n'),
           priority: 'P5',
         },
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `error-while-topping-up-wallet-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
     });
   });
@@ -598,24 +557,24 @@ describe('walletWatcher', () => {
         .mockImplementation(async () => [[{ message: 'Returned gas price', level: 'INFO' }], gasTarget] as any);
       nonceManagerSendTransactionSpy.mockImplementation(async () => transactionResponseMock);
 
-      await walletWatcher.runWalletWatcher(walletConfig, operationsRepository);
+      await walletWatcher.runWalletWatcher(config, wallets);
 
       expect(nonceManagerSendTransactionSpy).toHaveBeenCalledWith({
         to: wallet.address,
-        value: ethers.utils.parseEther(walletConfig.chains[chainId].topUpAmount!),
+        value: ethers.utils.parseEther(config.chains[chainId].topUpAmount!),
         ...gasTarget,
       });
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `no-sponsor-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `low-master-sponsor-balance-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(sendToOpsGenieLowLevelSpy).toHaveBeenCalledWith(
         {
@@ -623,16 +582,16 @@ describe('walletWatcher', () => {
           alias: `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
           description: [
             `Type of wallet: ${wallet.walletType}`,
-            `Address: ${walletConfig.explorerUrls[chainId]}address/${wallet.address} )`,
-            `Transaction: ${walletConfig.explorerUrls[chainId]}tx/${'0xabc'}`,
+            `Address: ${config.explorerUrls[chainId]}address/${wallet.address} )`,
+            `Transaction: ${config.explorerUrls[chainId]}tx/${'0xabc'}`,
           ].join('\n'),
           priority: 'P5',
         },
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `error-while-topping-up-wallet-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
     });
 
@@ -650,33 +609,33 @@ describe('walletWatcher', () => {
         .mockImplementation(async () => [[{ message: 'Returned gas price', level: 'INFO' }], gasTarget] as any);
       nonceManagerSendTransactionSpy.mockImplementation(async () => transactionResponseMock);
 
-      const walletConfigOnce = {
-        ...walletConfig,
+      const configOnce = {
+        ...config,
         chains: {
-          ...walletConfig.chains,
+          ...config.chains,
           ['3']: {
             rpc: 'https://ropsten-provider.com/',
           } as any,
         } as ChainsConfig,
       };
-      await walletWatcher.runWalletWatcher(walletConfigOnce, operationsRepository);
+      await walletWatcher.runWalletWatcher(configOnce, wallets);
 
       expect(nonceManagerSendTransactionSpy).toHaveBeenCalledWith({
         to: wallet.address,
-        value: ethers.utils.parseEther(walletConfig.chains[chainId].topUpAmount!),
+        value: ethers.utils.parseEther(config.chains[chainId].topUpAmount!),
         ...gasTarget,
       });
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `no-sponsor-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `low-master-sponsor-balance-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(sendToOpsGenieLowLevelSpy).toHaveBeenCalledWith(
         {
@@ -684,16 +643,16 @@ describe('walletWatcher', () => {
           alias: `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
           description: [
             `Type of wallet: ${wallet.walletType}`,
-            `Address: ${walletConfig.explorerUrls[chainId]}address/${wallet.address} )`,
-            `Transaction: ${walletConfig.explorerUrls[chainId]}tx/${'0xabc'}`,
+            `Address: ${config.explorerUrls[chainId]}address/${wallet.address} )`,
+            `Transaction: ${config.explorerUrls[chainId]}tx/${'0xabc'}`,
           ].join('\n'),
           priority: 'P5',
         },
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `error-while-topping-up-wallet-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
     });
 
@@ -716,36 +675,49 @@ describe('walletWatcher', () => {
         })
         .mockImplementation(async () => transactionResponseMock);
 
-      const walletConfigOnce = {
-        ...walletConfig,
+      const configOnce = {
+        ...config,
         chains: {
-          ...walletConfig.chains,
-          ['3']: { ...walletConfig.chains[chainId], topUpAmount: '1' },
+          ...config.chains,
+          ['3']: { ...config.chains[chainId], topUpAmount: '1' },
         } as ChainsConfig,
       };
-      await walletWatcher.runWalletWatcher(walletConfigOnce, operationsRepository);
+      const walletsOnce = {
+        ...wallets,
+        '3': [
+          {
+            apiName: 'api3',
+            walletType: 'Provider',
+            address: '0xC26f10e1b37A1E7A7De266FeF0c19533489C3e75',
+            providerXpub:
+              'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
+            sponsor: '0x9fEe9F24ab79adacbB51af82fb82CFb9D818c6d9',
+          } as Wallet,
+        ],
+      };
+      await walletWatcher.runWalletWatcher(configOnce, walletsOnce);
 
       expect(nonceManagerSendTransactionSpy).toHaveBeenCalledWith({
         to: wallet.address,
-        value: ethers.utils.parseEther(walletConfigOnce.chains[chainId].topUpAmount!),
+        value: ethers.utils.parseEther(configOnce.chains[chainId].topUpAmount!),
         ...gasTarget,
       });
       expect(nonceManagerSendTransactionSpy).toHaveBeenCalledWith({
         to: wallet.address,
-        value: ethers.utils.parseEther(walletConfigOnce.chains['3'].topUpAmount!),
+        value: ethers.utils.parseEther(configOnce.chains['3'].topUpAmount!),
         ...gasTarget,
       });
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `no-sponsor-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `low-master-sponsor-balance-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(sendToOpsGenieLowLevelSpy).toHaveBeenCalledWith(
         {
@@ -753,16 +725,16 @@ describe('walletWatcher', () => {
           alias: `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
           description: [
             `Type of wallet: ${wallet.walletType}`,
-            `Address: ${walletConfig.explorerUrls[chainId]}address/${wallet.address} )`,
-            `Transaction: ${walletConfig.explorerUrls[chainId]}tx/${'0xabc'}`,
+            `Address: ${config.explorerUrls[chainId]}address/${wallet.address} )`,
+            `Transaction: ${config.explorerUrls[chainId]}tx/${'0xabc'}`,
           ].join('\n'),
           priority: 'P5',
         },
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
         `error-while-topping-up-wallet-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       expect(sendToOpsGenieLowLevelSpy).toHaveBeenCalledWith(
         {
@@ -771,7 +743,7 @@ describe('walletWatcher', () => {
           priority: 'P1',
           description: `Error: ${txError}\nStack Trace: ${(txError as Error)?.stack}`,
         },
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
     });
   });

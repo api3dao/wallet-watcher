@@ -1,14 +1,13 @@
-import { ethers, Wallet } from 'ethers';
+import { ethers } from 'ethers';
 import { uniqBy } from 'lodash';
 import { NonceManager } from '@ethersproject/experimental';
 import { parseEther } from 'ethers/lib/utils';
-import { OperationsRepository } from '@api3/operations';
 import { getGasPrice } from '@api3/airnode-utilities';
 import { evm as nodeEvm } from '@api3/airnode-node';
-import { PROTOCOL_IDS } from '@api3/airnode-protocol';
-import { evm, opsGenie, promises, logging, GlobalSponsor } from '@api3/operations-utilities';
+import { PROTOCOL_IDS, networks } from '@api3/airnode-protocol';
+import { opsGenie, promises, logging, GlobalSponsor } from '@api3/operations-utilities';
 import { API3_XPUB } from './constants';
-import { ExtendedWalletWithMetadata, WalletStatus, WalletConfig } from './types';
+import { Wallet, WalletStatus, Config, Wallets } from './types';
 
 /**
  * Notes
@@ -17,47 +16,22 @@ import { ExtendedWalletWithMetadata, WalletStatus, WalletConfig } from './types'
  */
 
 /**
- * Returns a provider instance based on wallet config and a chain name
- * @param walletConfig the result of parsing walletConfig.json
- * @param chainName the name of the chain
+ *
+ * Returns networks including names and chainIds
  */
-export const getProvider = async (walletConfig: WalletConfig, chainName: string, operations: OperationsRepository) => {
-  const chainId = evm.resolveChainId(chainName, operations as any); //TODO remove any type after operations dependency in operations-utilities is updated
-  if (!chainId) {
-    await opsGenie.sendToOpsGenieLowLevel(
-      {
-        message: 'Invalid chain name',
-        alias: `invalid-chain-name-${chainName}`,
-        description: `Check that the chains specified in the ops repository and in config/walletConfig.json match`,
-        priority: 'P3',
-      },
-      walletConfig.opsGenieConfig
-    );
-    return;
-  }
+export const getNetworks = () => networks;
 
-  await opsGenie.closeOpsGenieAlertWithAlias(`invalid-chain-name-${chainName}`, walletConfig.opsGenieConfig);
-
-  if (!walletConfig.chains[chainId]) {
-    await opsGenie.sendToOpsGenieLowLevel(
-      {
-        message: `No provider found for chain id ${chainId} (${chainName})`,
-        alias: `no-provider-found-${chainId}`,
-        description: `No provider found for this chain ID, please check the config/walletConfig.json file`,
-        priority: 'P2',
-      },
-      walletConfig.opsGenieConfig
-    );
-    return;
-  }
-
-  await opsGenie.closeOpsGenieAlertWithAlias(`no-provider-found-${chainId}`, walletConfig.opsGenieConfig);
-
-  return new ethers.providers.StaticJsonRpcProvider(walletConfig.chains[chainId].rpc, {
+/**
+ * Returns a provider instance based on wallet config and a chain name
+ * @param url the provider url
+ * @param chainName the name of the chain
+ * @param chainId the id of the chain
+ */
+export const getProvider = (url: string, chainName: string, chainId: string) =>
+  new ethers.providers.StaticJsonRpcProvider(url, {
     chainId: parseInt(chainId),
     name: chainName,
   });
-};
 
 /**
  * Derives a sponsor wallet address
@@ -66,62 +40,56 @@ export const getProvider = async (walletConfig: WalletConfig, chainName: string,
  * @param xpub
  * @param protocolId
  */
-export const derivePspAddress = (sponsor: string, xpub: string, protocolId: string) => {
+export const deriveSponsorWalletAddress = (sponsor: string, xpub: string, protocolId: string) => {
   const airnodeHdNode = ethers.utils.HDNode.fromExtendedKey(xpub);
   return airnodeHdNode.derivePath(nodeEvm.deriveWalletPathFromSponsorAddress(sponsor, protocolId)).address;
 };
 
-export const determineWalletAddress = (wallet: ExtendedWalletWithMetadata, sponsor: string) => {
+export const determineWalletAddress = (wallet: Wallet, sponsor: string) => {
   switch (wallet.walletType) {
     case 'API3':
     case 'Provider':
       return { ...wallet, address: wallet.address! };
+    // Replace destination addresses for derived PSP and Airseeker wallets
     case 'API3-Sponsor':
-      return { ...wallet, address: derivePspAddress(sponsor, API3_XPUB, PROTOCOL_IDS.PSP) };
+      return { ...wallet, address: deriveSponsorWalletAddress(sponsor, API3_XPUB, PROTOCOL_IDS.PSP) };
     case 'Provider-Sponsor':
-      return { ...wallet, address: derivePspAddress(sponsor, wallet.providerXpub, PROTOCOL_IDS.PSP) };
+      return { ...wallet, address: deriveSponsorWalletAddress(sponsor, wallet.providerXpub, PROTOCOL_IDS.PSP) };
+    case 'Airseeker':
+      return { ...wallet, address: deriveSponsorWalletAddress(sponsor, wallet.providerXpub, PROTOCOL_IDS.AIRSEEKER) };
   }
 };
 
 /**
- * Calculates and deduplicates all sponsor wallets from ops and populates the resulting wallets with the balances.
+ * Calculates and deduplicates all sponsor wallets from wallets.json and populates the resulting wallets with the balances.
  *
- * @param walletConfig parsed walletConfig
- * @param operations the parsed operations repository
+ * @param config parsed config.json
+ * @param wallets parsed wallets.json
  */
-export const getWalletsAndBalances = async (walletConfig: WalletConfig, operations: OperationsRepository) => {
-  const duplicatedWallets = Object.entries(operations.apis)
-    .flatMap(([_apiName, api]) =>
-      Object.entries(api.beacons).flatMap(([_beaconName, beaconValue]) =>
-        Object.entries(beaconValue.chains).flatMap(([chainName, chain]) =>
-          chain.topUpWallets.flatMap((wallet) => ({
-            ...wallet,
-            chainName,
-            providerXpub: api.apiMetadata.xpub,
-            api3Xpub: chain.sponsor,
-            sponsor: chain.sponsor,
-          }))
-        )
-      )
-    )
-    .map((wallet) => determineWalletAddress(wallet, wallet.sponsor));
+export const getWalletsAndBalances = async (config: Config, wallets: Wallets) => {
+  const networkMap = getNetworks();
+  const walletsWithDerivedAddresses = Object.entries(wallets).flatMap(([chainId, wallets]) =>
+    wallets.flatMap((wallet) => ({
+      ...determineWalletAddress(wallet, wallet.sponsor),
+      chainId,
+      chainName: networkMap[chainId].name,
+    }))
+  );
 
-  // There must be a chain in ops for this
-  const walletsToAssess = uniqBy(duplicatedWallets, (item) => `${item.address}${item.chainName}`).filter((wallet) =>
-    Object.values(operations.chains).find((chain) => chain.name === wallet.chainName)
+  // There must be a chain in the config for this
+  const walletsToAssess = uniqBy(walletsWithDerivedAddresses, (item) => `${item.address}${item.chainName}`).filter(
+    (wallet) => Object.keys(config.chains).find((chainId) => chainId === wallet.chainId)
   );
 
   const walletPromises = walletsToAssess.map(async (wallet) => {
-    const provider = await getProvider(walletConfig, wallet.chainName, operations);
+    const provider = getProvider(config.chains[wallet.chainId].rpc, wallet.chainName, wallet.chainId);
     if (!provider) throw new Error(`Unable to initialize provider for chain (${wallet.chainName})`);
 
     const balance = await provider.getBalance(wallet.address);
     if (!balance)
       throw new Error(`Unable to get balance for chain (${wallet.chainName}) and address (${wallet.address})`);
     return {
-      address: wallet.address,
-      walletType: wallet.walletType,
-      chainName: wallet.chainName,
+      ...wallet,
       balance,
       provider,
     };
@@ -144,26 +112,17 @@ export const getWalletsAndBalances = async (walletConfig: WalletConfig, operatio
  * up transactions if low balance criteria are met.
  *
  * @param wallet a wallet object containing a wallet address and balance
- * @param walletConfig parsed walletConfig
+ * @param config parsed config.json
  * @param globalSponsors a set of wallets used as the source of funds for top-ups. Different wallets represent funds on different chains.
  */
-export const checkAndFundWallet = async (
-  wallet: WalletStatus,
-  walletConfig: WalletConfig,
-  globalSponsors: GlobalSponsor[],
-  operations: OperationsRepository
-) => {
+export const checkAndFundWallet = async (wallet: WalletStatus, config: Config, globalSponsors: GlobalSponsor[]) => {
   try {
-    const chainId = evm.resolveChainId(wallet.chainName, operations as any); //TODO remove any type after operations dependency in operations-utilities is updated
-    if (!chainId) {
-      return;
-    }
-    const globalSponsor = globalSponsors.find((sponsor) => sponsor.chainId === chainId);
+    const globalSponsor = globalSponsors.find((sponsor) => sponsor.chainId === wallet.chainId);
 
     // Close previous cycle alerts
     await opsGenie.closeOpsGenieAlertWithAlias(
       `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
-      walletConfig.opsGenieConfig
+      config.opsGenieConfig
     );
 
     if (!globalSponsor) {
@@ -173,14 +132,14 @@ export const checkAndFundWallet = async (
           alias: `no-sponsor-${wallet.address}-${wallet.chainName}`,
           priority: 'P1',
         },
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
       return;
     }
 
     await opsGenie.closeOpsGenieAlertWithAlias(
       `no-sponsor-${wallet.address}-${wallet.chainName}`,
-      walletConfig.opsGenieConfig
+      config.opsGenieConfig
     );
 
     if (!(globalSponsor.lowBalance && globalSponsor.topUpAmount && globalSponsor.globalSponsorLowBalanceWarn)) {
@@ -203,16 +162,16 @@ export const checkAndFundWallet = async (
           alias: `low-master-sponsor-balance-${wallet.chainName}`,
           priority: 'P3',
         },
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
     } else {
       await opsGenie.closeOpsGenieAlertWithAlias(
         `low-master-sponsor-balance-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
     }
 
-    const [logs, gasTarget] = await getGasPrice(wallet.provider, walletConfig.chains[chainId].options);
+    const [logs, gasTarget] = await getGasPrice(wallet.provider, config.chains[wallet.chainId].options);
     logs.forEach((log) =>
       logging.log(log.message, log.level === 'INFO' || log.level === 'ERROR' ? log.level : undefined)
     );
@@ -227,17 +186,17 @@ export const checkAndFundWallet = async (
           description: [
             `DID NOT ACTUALLY SEND FUNDS! WALLET_ENABLE_SEND_FUNDS is not set`,
             `Type of wallet: ${wallet.walletType}`,
-            `Address: ${walletConfig.explorerUrls[chainId]}address/${wallet.address} )`,
-            `Transaction: ${walletConfig.explorerUrls[chainId]}tx/not-applicable`,
+            `Address: ${config.explorerUrls[wallet.chainId]}address/${wallet.address} )`,
+            `Transaction: ${config.explorerUrls[wallet.chainId]}tx/not-applicable`,
           ].join('\n'),
           priority: 'P5',
         },
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
 
       await opsGenie.closeOpsGenieAlertWithAlias(
         `error-while-topping-up-wallet-${wallet.address}-${wallet.chainName}`,
-        walletConfig.opsGenieConfig
+        config.opsGenieConfig
       );
 
       return;
@@ -256,19 +215,19 @@ export const checkAndFundWallet = async (
         alias: `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
         description: [
           `Type of wallet: ${wallet.walletType}`,
-          `Address: ${walletConfig.explorerUrls[chainId]}address/${wallet.address} )`,
-          `Transaction: ${walletConfig.explorerUrls[chainId]}tx/${
+          `Address: ${config.explorerUrls[wallet.chainId]}address/${wallet.address} )`,
+          `Transaction: ${config.explorerUrls[wallet.chainId]}tx/${
             receipt?.hash ?? 'WALLET_ENABLE_SEND_FUNDS disabled'
           }`,
         ].join('\n'),
         priority: 'P5',
       },
-      walletConfig.opsGenieConfig
+      config.opsGenieConfig
     );
 
     await opsGenie.closeOpsGenieAlertWithAlias(
       `error-while-topping-up-wallet-${wallet.address}-${wallet.chainName}`,
-      walletConfig.opsGenieConfig
+      config.opsGenieConfig
     );
   } catch (e) {
     await opsGenie.sendToOpsGenieLowLevel(
@@ -278,7 +237,7 @@ export const checkAndFundWallet = async (
         priority: 'P1',
         description: `Error: ${e}\nStack Trace: ${(e as Error)?.stack}`,
       },
-      walletConfig.opsGenieConfig
+      config.opsGenieConfig
     );
 
     return;
@@ -288,10 +247,10 @@ export const checkAndFundWallet = async (
 /**
  * Returns an array of global sponsor wallets connected to their respective RPC providers
  *
- * @param walletConfig parsed walletConfig
+ * @param config parsed config
  */
-export const getGlobalSponsors = (walletConfig: WalletConfig) =>
-  Object.entries(walletConfig.chains).reduce((acc: GlobalSponsor[], [chainId, chain]) => {
+export const getGlobalSponsors = (config: Config) =>
+  Object.entries(config.chains).reduce((acc: GlobalSponsor[], [chainId, chain]) => {
     if (!(chain.globalSponsorLowBalanceWarn && chain.lowBalance && chain.topUpAmount)) {
       logging.debugLog(
         `Wallet configuration for chain id ${chainId} missing lowBalance, topUpAmount or globalSponsorLowBalanceWarn. Skipping sponsor initialization.`
@@ -300,7 +259,7 @@ export const getGlobalSponsors = (walletConfig: WalletConfig) =>
     }
 
     const sponsor = new NonceManager(
-      Wallet.fromMnemonic(walletConfig.topUpMnemonic).connect(
+      ethers.Wallet.fromMnemonic(config.topUpMnemonic).connect(
         new ethers.providers.StaticJsonRpcProvider(chain.rpc, {
           chainId: parseInt(chainId),
           name: chainId,
@@ -321,14 +280,14 @@ export const getGlobalSponsors = (walletConfig: WalletConfig) =>
 /**
  * Runs wallet watcher
  *
- * @param walletConfig parsed walletConfig
- * @param operations the parsed operations repository
+ * @param config parsed config.json
+ * @param wallets parsed wallets.json
  */
-export const runWalletWatcher = async (walletConfig: WalletConfig, operations: OperationsRepository) => {
-  const globalSponsors = getGlobalSponsors(walletConfig);
-  const walletsAndBalances = await getWalletsAndBalances(walletConfig, operations);
+export const runWalletWatcher = async (config: Config, wallets: Wallets) => {
+  const globalSponsors = getGlobalSponsors(config);
+  const walletsAndBalances = await getWalletsAndBalances(config, wallets);
 
   await promises.settleAndCheckForPromiseRejections(
-    walletsAndBalances.map((wallet) => checkAndFundWallet(wallet, walletConfig, globalSponsors, operations))
+    walletsAndBalances.map((wallet) => checkAndFundWallet(wallet, config, globalSponsors))
   );
 };

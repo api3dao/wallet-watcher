@@ -7,7 +7,8 @@ variablesResolutionMode: 20210326
 
 package:
   patterns:
-    - ./config/walletConfig.json
+    - ./config/config.json
+    - ./config/wallets.json
 
 provider:
   name: aws
@@ -20,6 +21,8 @@ provider:
   environment:
     OPSGENIE_API_KEY: ''
     DEBUG: true
+    WALLET_CONFIG: 'config.json'
+    WALLETS: 'wallets.json'
 
 functions:
   wallet-watcher:

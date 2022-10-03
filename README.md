@@ -3,13 +3,13 @@
 The wallet watcher loads and ingests the contents of the [operations repository](https://github.com/api3dao/operations)
 and based on the deployed beacons found in it monitors and tops up associated operational wallets.
 
-If a wallet's balance is below the `lowBalance` configuration field in `config/walletConfig.json` the function will top
-up the wallet with the amount specified in the `topUpAmount` field in the same file.
+If a wallet's balance is below the `lowBalance` configuration field in `config/config.json` the function will top up the
+wallet with the amount specified in the `topUpAmount` field in the same file.
 
 ## Deployment
 
-AWS credentials should be exported as environment variables and both `config/walletConfig.json` and `serverless.yml`
-should be populated prior to running the following commands:
+AWS credentials should be exported as environment variables and both `config/config.json` and `serverless.yml` should be
+populated prior to running the following commands:
 
 ```bash
 # Test your installation with
@@ -36,7 +36,7 @@ so. This is to prevent scenarios where dev code sends real funds to unrecoverabl
 
 ## Configuration
 
-### `walletConfig.json`
+### `config.json`
 
 #### `chains`
 
@@ -58,3 +58,21 @@ so. This is to prevent scenarios where dev code sends real funds to unrecoverabl
   the `Ops Genie api key`.
 
 - `explorerUrls.<chainId>`: The explorer URL.
+
+### `wallets.json`
+
+- `<chainId>[]`: A list of wallets to check and top up for a chain.
+
+- `<chainId>[n].walletType`: The type of wallet with the following options:
+  - `Provider`: the value for the `address` field in the same object is used for top ups.
+  - `API3`: the value for the `address` field in the same object is used for top ups.
+  - `Provider-Sponsor`: the destination address is derived from the `sponsor` using the `providerXpub` and `PSP`
+    protocol id.
+  - `API3-Sponsor`: the destination address is derived from the `sponsor` using the `API3_XPUB` and PSP protocol id.
+  - `Airseeker`: the destination address is derived from the `sponsor` using the `providerXpub` and `AIRSEEKER` protocol
+    id.
+- `<chainId>[n].address` (required only if `walletType` is `Provider` or `API3`): The destination wallet to be used
+  directly without deriving from the sponsor wallet.
+- `<chainId>[n].apiName` (optional): The name of the API provider.
+- `<chainId>[n].providerXpub`: The extended public key of the sponsor address.
+- `<chainId>[n].sponsor`: The sponsor address to derive the destination wallet.

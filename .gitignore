@@ -19,8 +19,9 @@ aws.env
 **/config.json
 **/secrets.env
 serverless.yml
-walletConfig.json
-nodeConfig.json
+config.json
+wallets.json
+wallets-export.json
 # Exports
 /exports
 /coverage
