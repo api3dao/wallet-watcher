@@ -65,20 +65,6 @@ describe('config.json', () => {
           code: 'invalid_type',
           expected: 'string',
           received: 'undefined',
-          path: ['chains', '31337', 'topUpAmount'],
-          message: 'Required',
-        },
-        {
-          code: 'invalid_type',
-          expected: 'string',
-          received: 'undefined',
-          path: ['chains', '31337', 'lowBalance'],
-          message: 'Required',
-        },
-        {
-          code: 'invalid_type',
-          expected: 'string',
-          received: 'undefined',
           path: ['chains', '31337', 'globalSponsorLowBalanceWarn'],
           message: 'Required',
         },
@@ -109,6 +95,8 @@ describe('wallets.json', () => {
           walletType: 'Provider',
           providerXpub:
             'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
+          topUpAmount: '0.1',
+          lowBalance: '0.2',
         },
       ],
     };
@@ -137,6 +125,8 @@ describe('wallets.json', () => {
           walletType: 'Provider-Sponsor',
           providerXpub:
             'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
+          topUpAmount: '0.1',
+          lowBalance: '0.2',
         },
       ],
     };
@@ -164,6 +154,8 @@ describe('wallets.json', () => {
           apiName: 'api3',
           walletType: 'Provider-Sponsor',
           sponsor: '0x9fEe9F24ab79adacbB51af82fb82CFb9D818c6d9',
+          topUpAmount: '0.1',
+          lowBalance: '0.2',
         },
       ],
     };
@@ -178,6 +170,66 @@ describe('wallets.json', () => {
           expected: 'string',
           received: 'undefined',
           path: ['1', 0, 'providerXpub'],
+          message: 'Required',
+        },
+      ])}`
+    );
+  });
+
+  it('throws on missing topUpAmount', () => {
+    const invalidWallets = {
+      1: [
+        {
+          apiName: 'api3',
+          walletType: 'Provider-Sponsor',
+          providerXpub:
+            'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
+          sponsor: '0x9fEe9F24ab79adacbB51af82fb82CFb9D818c6d9',
+          lowBalance: '0.2',
+        },
+      ],
+    };
+    mockReadFileSync('wallets.example.json', JSON.stringify(invalidWallets));
+    const goParse = goSync(() => loadWallets(path.join(__dirname, '../config/wallets.example.json')));
+    assertGoError(goParse);
+    expect(goParse.success).toEqual(false);
+    expect(goParse.error.message).toEqual(
+      `Invalid wallets.json file: ${new z.ZodError([
+        {
+          code: 'invalid_type',
+          expected: 'string',
+          received: 'undefined',
+          path: ['1', 0, 'topUpAmount'],
+          message: 'Required',
+        },
+      ])}`
+    );
+  });
+
+  it('throws on missing lowBalance', () => {
+    const invalidWallets = {
+      1: [
+        {
+          apiName: 'api3',
+          walletType: 'Provider-Sponsor',
+          providerXpub:
+            'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
+          sponsor: '0x9fEe9F24ab79adacbB51af82fb82CFb9D818c6d9',
+          topUpAmount: '0.1',
+        },
+      ],
+    };
+    mockReadFileSync('wallets.example.json', JSON.stringify(invalidWallets));
+    const goParse = goSync(() => loadWallets(path.join(__dirname, '../config/wallets.example.json')));
+    assertGoError(goParse);
+    expect(goParse.success).toEqual(false);
+    expect(goParse.error.message).toEqual(
+      `Invalid wallets.json file: ${new z.ZodError([
+        {
+          code: 'invalid_type',
+          expected: 'string',
+          received: 'undefined',
+          path: ['1', 0, 'lowBalance'],
           message: 'Required',
         },
       ])}`

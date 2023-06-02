@@ -4,8 +4,6 @@ export const buildConfig = (): Config => ({
   chains: {
     '31337': {
       rpc: 'http://127.0.0.1:8545/',
-      topUpAmount: '0.1',
-      lowBalance: '0.2',
       globalSponsorLowBalanceWarn: '3',
       options: {
         fulfillmentGasLimit: 123456, // The wallet-watcher doesn't currently use this but it is required in the ChainOptions type
@@ -56,6 +54,8 @@ export const buildWallets = (): Wallets => ({
       address: '0xC26f10e1b37A1E7A7De266FeF0c19533489C3e75',
       providerXpub:
         'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
+      topUpAmount: '0.1',
+      lowBalance: '0.2',
     },
   ],
 });

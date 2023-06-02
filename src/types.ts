@@ -6,8 +6,6 @@ import { config } from '@api3/airnode-validator';
 export const chainConfigSchema = z
   .object({
     rpc: z.string(),
-    topUpAmount: z.string(),
-    lowBalance: z.string(),
     globalSponsorLowBalanceWarn: z.string(),
     options: config.chainOptionsSchema,
   })
@@ -43,38 +41,39 @@ export const walletTypeSchema = z.union([
   z.literal('Airseeker'),
 ]);
 
-const providerWalletSchema = z.object({
+const baseWalletSchema = z.object({
+  apiName: z.string().optional(),
+  topUpAmount: z.string(),
+  lowBalance: z.string(),
+});
+
+const providerWalletSchema = baseWalletSchema.extend({
   walletType: z.literal('Provider'),
   address: config.evmAddressSchema,
   providerXpub: z.string(),
-  apiName: z.string().optional(),
 });
 
-const api3WalletSchema = z.object({
+const api3WalletSchema = baseWalletSchema.extend({
   walletType: z.literal('API3'),
   address: config.evmAddressSchema,
-  apiName: z.string().optional(),
 });
 
-const providerSponsorWalletSchema = z.object({
+const providerSponsorWalletSchema = baseWalletSchema.extend({
   walletType: z.literal('Provider-Sponsor'),
   sponsor: config.evmAddressSchema,
   providerXpub: z.string(),
-  apiName: z.string().optional(),
 });
 
-const api3SponsorWalletSchema = z.object({
+const api3SponsorWalletSchema = baseWalletSchema.extend({
   walletType: z.literal('API3-Sponsor'),
   sponsor: config.evmAddressSchema,
   providerXpub: z.string(),
-  apiName: z.string().optional(),
 });
 
-const airseekerSponsorWalletSchema = z.object({
+const airseekerSponsorWalletSchema = baseWalletSchema.extend({
   walletType: z.literal('Airseeker'),
   sponsor: config.evmAddressSchema,
   providerXpub: z.string(),
-  apiName: z.string().optional(),
 });
 
 export const walletSchema = z.discriminatedUnion('walletType', [

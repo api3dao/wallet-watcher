@@ -145,7 +145,7 @@ export const checkAndFundWallet = async (wallet: WalletStatus, config: Config, g
       config.opsGenieConfig
     );
 
-    const walletBalanceThreshold = parseEther(globalSponsor.lowBalance);
+    const walletBalanceThreshold = parseEther(wallet.lowBalance);
     if (wallet.balance.gt(walletBalanceThreshold)) {
       return;
     }
@@ -200,7 +200,7 @@ export const checkAndFundWallet = async (wallet: WalletStatus, config: Config, g
 
     const receipt = await globalSponsor.sponsor.sendTransaction({
       to: wallet.address,
-      value: parseEther(globalSponsor.topUpAmount),
+      value: parseEther(wallet.topUpAmount),
       ...restGasTarget,
     });
     await receipt.wait(1);
