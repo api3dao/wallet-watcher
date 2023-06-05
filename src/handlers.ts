@@ -1,9 +1,15 @@
-import 'source-map-support/register';
 import path from 'path';
-import { logging, opsGenie } from '@api3/operations-utilities';
+import {
+  cacheOpenAlerts,
+  closeOpsGenieAlertWithAlias,
+  log,
+  sendOpsGenieHeartbeat,
+  sendToOpsGenieLowLevel,
+} from '@api3/operations-utilities';
 import { go } from '@api3/promise-utils';
-import { runWalletWatcher } from './wallet-watcher';
+import 'source-map-support/register';
 import { loadConfig, loadWallets } from './config';
+import { runWalletWatcher } from './wallet-watcher';
 
 /**
  * Check wallet balances and tops up those below the threshold
@@ -11,11 +17,11 @@ import { loadConfig, loadWallets } from './config';
  * @param _event
  */
 export const walletWatcherHandler = async (_event: any = {}) => {
-  logging.log('Starting Wallet Watcher');
+  log('Starting Wallet Watcher');
   const startedAt = new Date();
   const config = loadConfig(path.join(__dirname, '../config/config.json'));
   const wallets = loadWallets(path.join(__dirname, '../config/wallets.json'));
-  await opsGenie.cacheOpenAlerts(config.opsGenieConfig);
+  await cacheOpenAlerts(config.opsGenieConfig);
 
   const goResult = await go(() => runWalletWatcher(config, wallets), {
     totalTimeoutMs: 120_000,
@@ -24,7 +30,7 @@ export const walletWatcherHandler = async (_event: any = {}) => {
   });
 
   if (!goResult.success) {
-    await opsGenie.sendToOpsGenieLowLevel(
+    await sendToOpsGenieLowLevel(
       {
         message: `Wallet Watcher encountered an error after multiple tries: ${goResult.error}`,
         alias: 'serverless-wallet-watcher',
@@ -33,11 +39,11 @@ export const walletWatcherHandler = async (_event: any = {}) => {
       config.opsGenieConfig
     );
   } else {
-    await opsGenie.closeOpsGenieAlertWithAlias('serverless-wallet-watcher', config.opsGenieConfig);
+    await closeOpsGenieAlertWithAlias('serverless-wallet-watcher', config.opsGenieConfig);
   }
 
-  await opsGenie.sendOpsGenieHeartbeat('wallet-watcher', config.opsGenieConfig);
+  await sendOpsGenieHeartbeat('wallet-watcher', config.opsGenieConfig);
 
   const endedAt = new Date();
-  logging.log(`Wallet Watcher run delta: ${(endedAt.getTime() - startedAt.getTime()) / 1000}s`);
+  log(`Wallet Watcher run delta: ${(endedAt.getTime() - startedAt.getTime()) / 1000}s`);
 };

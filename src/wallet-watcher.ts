@@ -1,13 +1,18 @@
-import { ethers } from 'ethers';
-import { uniqBy } from 'lodash';
-import { NonceManager } from '@ethersproject/experimental';
-import { parseEther } from 'ethers/lib/utils';
-import { getGasPrice } from '@api3/airnode-utilities';
 import { evm as nodeEvm } from '@api3/airnode-node';
 import { PROTOCOL_IDS, networks } from '@api3/airnode-protocol';
-import { opsGenie, promises, logging } from '@api3/operations-utilities';
+import { getGasPrice } from '@api3/airnode-utilities';
+import {
+  closeOpsGenieAlertWithAlias,
+  log,
+  sendToOpsGenieLowLevel,
+  settleAndCheckForPromiseRejections,
+} from '@api3/operations-utilities';
+import { NonceManager } from '@ethersproject/experimental';
+import { ethers } from 'ethers';
+import { parseEther } from 'ethers/lib/utils';
+import { uniqBy } from 'lodash';
 import { API3_XPUB } from './constants';
-import { Wallet, WalletStatus, Config, Wallets, GlobalSponsor } from './types';
+import { Config, GlobalSponsor, Wallet, WalletStatus, Wallets } from './types';
 
 /**
  * Notes
@@ -102,7 +107,7 @@ export const getWalletsAndBalances = async (config: Config, wallets: Wallets) =>
 
   return walletBalances.reduce((acc: WalletStatus[], settledPromise: PromiseSettledResult<WalletStatus>) => {
     if (settledPromise.status === 'rejected') {
-      logging.log(`Failed to get wallet balance.`, 'ERROR', `Error: ${settledPromise.reason.message}.`);
+      log(`Failed to get wallet balance.`, 'ERROR', `Error: ${settledPromise.reason.message}.`);
       return acc;
     }
 
@@ -123,13 +128,10 @@ export const checkAndFundWallet = async (wallet: WalletStatus, config: Config, g
     const globalSponsor = globalSponsors.find((sponsor) => sponsor.chainId === wallet.chainId);
 
     // Close previous cycle alerts
-    await opsGenie.closeOpsGenieAlertWithAlias(
-      `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
-      config.opsGenieConfig
-    );
+    await closeOpsGenieAlertWithAlias(`freshly-topped-up-${wallet.address}-${wallet.chainName}`, config.opsGenieConfig);
 
     if (!globalSponsor) {
-      await opsGenie.sendToOpsGenieLowLevel(
+      await sendToOpsGenieLowLevel(
         {
           message: `Can't find a valid global sponsor for ${wallet.address} on ${wallet.chainName}`,
           alias: `no-sponsor-${wallet.address}-${wallet.chainName}`,
@@ -140,10 +142,7 @@ export const checkAndFundWallet = async (wallet: WalletStatus, config: Config, g
       return;
     }
 
-    await opsGenie.closeOpsGenieAlertWithAlias(
-      `no-sponsor-${wallet.address}-${wallet.chainName}`,
-      config.opsGenieConfig
-    );
+    await closeOpsGenieAlertWithAlias(`no-sponsor-${wallet.address}-${wallet.chainName}`, config.opsGenieConfig);
 
     const walletBalanceThreshold = parseEther(wallet.lowBalance);
     if (wallet.balance.gt(walletBalanceThreshold)) {
@@ -152,7 +151,7 @@ export const checkAndFundWallet = async (wallet: WalletStatus, config: Config, g
 
     const globalSponsorBalanceThreshold = parseEther(globalSponsor.globalSponsorLowBalanceWarn);
     if ((await globalSponsor.sponsor.getBalance()).lt(globalSponsorBalanceThreshold)) {
-      await opsGenie.sendToOpsGenieLowLevel(
+      await sendToOpsGenieLowLevel(
         {
           message: `Low balance on primary top-up sponsor for chain ${wallet.chainName}`,
           alias: `low-master-sponsor-balance-${wallet.chainName}`,
@@ -161,21 +160,16 @@ export const checkAndFundWallet = async (wallet: WalletStatus, config: Config, g
         config.opsGenieConfig
       );
     } else {
-      await opsGenie.closeOpsGenieAlertWithAlias(
-        `low-master-sponsor-balance-${wallet.chainName}`,
-        config.opsGenieConfig
-      );
+      await closeOpsGenieAlertWithAlias(`low-master-sponsor-balance-${wallet.chainName}`, config.opsGenieConfig);
     }
 
     const [logs, gasTarget] = await getGasPrice(wallet.provider, config.chains[wallet.chainId].options);
-    logs.forEach((log) =>
-      logging.log(log.message, log.level === 'INFO' || log.level === 'ERROR' ? log.level : undefined)
-    );
+    logs.forEach(({ level, message }) => log(message, level === 'INFO' || level === 'ERROR' ? level : undefined));
 
     const { gasLimit: _gasLimit, ...restGasTarget } = gasTarget;
 
     if (!process.env.WALLET_ENABLE_SEND_FUNDS) {
-      await opsGenie.sendToOpsGenieLowLevel(
+      await sendToOpsGenieLowLevel(
         {
           message: `(would have) Just topped up ${wallet.address} on ${wallet.chainName}`,
           alias: `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
@@ -190,7 +184,7 @@ export const checkAndFundWallet = async (wallet: WalletStatus, config: Config, g
         config.opsGenieConfig
       );
 
-      await opsGenie.closeOpsGenieAlertWithAlias(
+      await closeOpsGenieAlertWithAlias(
         `error-while-topping-up-wallet-${wallet.address}-${wallet.chainName}`,
         config.opsGenieConfig
       );
@@ -205,7 +199,7 @@ export const checkAndFundWallet = async (wallet: WalletStatus, config: Config, g
     });
     await receipt.wait(1);
 
-    await opsGenie.sendToOpsGenieLowLevel(
+    await sendToOpsGenieLowLevel(
       {
         message: `Just topped up ${wallet.address} on ${wallet.chainName}`,
         alias: `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
@@ -221,12 +215,12 @@ export const checkAndFundWallet = async (wallet: WalletStatus, config: Config, g
       config.opsGenieConfig
     );
 
-    await opsGenie.closeOpsGenieAlertWithAlias(
+    await closeOpsGenieAlertWithAlias(
       `error-while-topping-up-wallet-${wallet.address}-${wallet.chainName}`,
       config.opsGenieConfig
     );
   } catch (e) {
-    await opsGenie.sendToOpsGenieLowLevel(
+    await sendToOpsGenieLowLevel(
       {
         message: 'An error occurred while trying to up up a wallet',
         alias: `error-while-topping-up-wallet-${wallet.address}-${wallet.chainName}`,
@@ -276,7 +270,7 @@ export const runWalletWatcher = async (config: Config, wallets: Wallets) => {
   const globalSponsors = getGlobalSponsors(config);
   const walletsAndBalances = await getWalletsAndBalances(config, wallets);
 
-  await promises.settleAndCheckForPromiseRejections(
+  await settleAndCheckForPromiseRejections(
     walletsAndBalances.map((wallet) => checkAndFundWallet(wallet, config, globalSponsors))
   );
 };

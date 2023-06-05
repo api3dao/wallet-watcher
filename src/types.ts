@@ -101,4 +101,5 @@ export type ChainsConfig = z.infer<typeof chainsConfigSchema>;
 export type Config = z.infer<typeof configSchema>;
 export type Wallet = z.infer<typeof walletSchema>;
 export type Wallets = z.infer<typeof walletsSchema>;
+export type WalletType = z.infer<typeof walletTypeSchema>;
 export type EvmAddress = z.infer<typeof config.evmAddressSchema>;

@@ -1,11 +1,11 @@
+import * as nodeUtils from '@api3/airnode-utilities';
+import * as operationsUtils from '@api3/operations-utilities';
+import * as ethersExperimental from '@ethersproject/experimental';
 import { ethers } from 'ethers';
 import * as hre from 'hardhat';
-import * as ethersExperimental from '@ethersproject/experimental';
-import { opsGenie } from '@api3/operations-utilities';
-import * as nodeUtils from '@api3/airnode-utilities';
+import { ChainsConfig, Wallet } from '../../src/types';
 import * as walletWatcher from '../../src/wallet-watcher';
 import * as fixtures from '../fixtures';
-import { ChainsConfig, Wallet } from '../../src/types';
 
 // Jest version 27 has a bug where jest.setTimeout does not work correctly inside describe or test blocks
 // https://github.com/facebook/jest/issues/11607
@@ -46,28 +46,28 @@ describe('walletWatcher', () => {
     jest.clearAllTimers();
 
     // Reset alerts to ensure a clean state for each test
-    opsGenie.resetCachedAlerts();
-    opsGenie.resetOpenAlerts();
+    operationsUtils.resetCachedAlerts();
+    operationsUtils.resetOpenAlerts();
 
     //Spy on getGasPrice
     getGasPriceSpy = jest.spyOn(nodeUtils, 'getGasPrice');
 
     // Mock calls to 3rd party APIs
-    sendToOpsGenieLowLevelSpy = jest.spyOn(opsGenie, 'sendToOpsGenieLowLevel').mockImplementation(async () => {
+    sendToOpsGenieLowLevelSpy = jest.spyOn(operationsUtils, 'sendToOpsGenieLowLevel').mockImplementation(async () => {
       console.log('sendToOpsGenieLowLevel was called');
       return;
     });
     closeOpsGenieAlertWithAliasSpy = jest
-      .spyOn(opsGenie, 'closeOpsGenieAlertWithAlias')
+      .spyOn(operationsUtils, 'closeOpsGenieAlertWithAlias')
       .mockImplementation(async () => {
         console.log('closeOpsGenieAlertWithAlias was called');
         return;
       });
-    jest.spyOn(opsGenie, 'getOpenAlertsForAlias').mockImplementation(async () => {
+    jest.spyOn(operationsUtils, 'getOpenAlertsForAlias').mockImplementation(async () => {
       console.log('getOpenAlertsForAlias was called');
       return '' as any;
     });
-    jest.spyOn(opsGenie, 'listOpenOpsGenieAlerts').mockImplementation(async () => {
+    jest.spyOn(operationsUtils, 'listOpenOpsGenieAlerts').mockImplementation(async () => {
       console.log('listOpenOpsGenieAlerts was called');
       return '' as any;
     });
