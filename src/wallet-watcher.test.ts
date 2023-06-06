@@ -90,7 +90,7 @@ describe('walletWatcher', () => {
 
   describe('getGlobalSponsors', () => {
     it('returns global sponsors', () => {
-      const globalSponsors = walletWatcher.getGlobalSponsors(config);
+      const globalSponsors = walletWatcher.intializeChainStates(config);
       const sponsor = new ethersExperimental.NonceManager(
         ethers.Wallet.fromMnemonic(config.topUpMnemonic).connect(
           new ethers.providers.StaticJsonRpcProvider(config.chains[chainId].rpc, {
@@ -205,7 +205,7 @@ describe('walletWatcher', () => {
           ...config.chains,
           ['123']: {
             rpc: 'http://127.0.0.1:8545/',
-            globalSponsorLowBalanceWarn: '3',
+            funderDepositoryLowBalanceWarn: '3',
             options: {
               fulfillmentGasLimit: 123456, // The wallet-watcher doesn't currently use this but it is required in the ChainOptions type
               gasPriceOracle: [

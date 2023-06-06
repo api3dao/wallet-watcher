@@ -1,12 +1,16 @@
-import { z } from 'zod';
-import { BigNumber, providers } from 'ethers';
-import { NonceManager } from '@ethersproject/experimental';
 import { config } from '@api3/airnode-validator';
+import { NonceManager } from '@ethersproject/experimental';
+import { ethers } from 'ethers';
+import { z } from 'zod';
+
+export const evmAddressSchema = z.string().regex(/^0x[a-fA-F0-9]{40}$/);
 
 export const chainConfigSchema = z
   .object({
     rpc: z.string(),
-    globalSponsorLowBalanceWarn: z.string(),
+    funderAddress: evmAddressSchema,
+    funderDepositoryOwner: evmAddressSchema,
+    topUpWalletLowBalanceWarn: z.string(),
     options: config.chainOptionsSchema,
   })
   .strict();
@@ -26,7 +30,6 @@ export const opsGenieConfigSchema = z.object({
 
 export const configSchema = z
   .object({
-    topUpMnemonic: z.string(),
     opsGenieConfig: opsGenieConfigSchema,
     chains: chainsConfigSchema,
     explorerUrls: z.record(z.string(), z.string()),
@@ -45,6 +48,7 @@ const baseWalletSchema = z.object({
   apiName: z.string().optional(),
   topUpAmount: z.string(),
   lowBalance: z.string(),
+  // TODO: field for sending a second alert if balance is % below lowBalance? Github issue #285 item 2
 });
 
 const providerWalletSchema = baseWalletSchema.extend({
@@ -86,16 +90,6 @@ export const walletSchema = z.discriminatedUnion('walletType', [
 
 export const walletsSchema = z.record(z.string(), z.array(walletSchema));
 
-export type WalletStatus = Wallet & {
-  balance: BigNumber;
-  chainName: string;
-  chainId: string;
-  provider: providers.StaticJsonRpcProvider;
-  address: EvmAddress;
-};
-
-export type GlobalSponsor = ChainConfig & { sponsor: NonceManager; chainId: string };
-
 export type ChainConfig = z.infer<typeof chainConfigSchema>;
 export type ChainsConfig = z.infer<typeof chainsConfigSchema>;
 export type Config = z.infer<typeof configSchema>;
@@ -103,3 +97,19 @@ export type Wallet = z.infer<typeof walletSchema>;
 export type Wallets = z.infer<typeof walletsSchema>;
 export type WalletType = z.infer<typeof walletTypeSchema>;
 export type EvmAddress = z.infer<typeof config.evmAddressSchema>;
+
+export type WalletStatus = Wallet & {
+  balance: ethers.BigNumber;
+  chainName: string;
+  chainId: string;
+  address: EvmAddress;
+};
+
+export type ChainState = ChainConfig & {
+  chainId: string;
+  provider: ethers.providers.StaticJsonRpcProvider;
+  nonceMananger: NonceManager;
+  funderContract: ethers.Contract;
+};
+
+export type ChainStates = Record<string, ChainState>;

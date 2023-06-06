@@ -14,25 +14,6 @@ describe('config.json', () => {
     expect(goParse.success).toEqual(true);
   });
 
-  it('throws on missing topUpMnemonic', () => {
-    const { topUpMnemonic: _topUpMnemonic, ...invalidConfig } = config;
-    mockReadFileSync('config.example.json', JSON.stringify(invalidConfig));
-    const goParse = goSync(() => loadConfig(path.join(__dirname, '../config/config.example.json')));
-    assertGoError(goParse);
-    expect(goParse.success).toEqual(false);
-    expect(goParse.error.message).toEqual(
-      `Invalid config.json file: ${new z.ZodError([
-        {
-          code: 'invalid_type',
-          expected: 'string',
-          received: 'undefined',
-          path: ['topUpMnemonic'],
-          message: 'Required',
-        },
-      ])}`
-    );
-  });
-
   it('throws on missing chain configurations', () => {
     const { chains: _chains, ...invalidConfig } = config;
     mockReadFileSync('config.example.json', JSON.stringify(invalidConfig));
@@ -65,7 +46,7 @@ describe('config.json', () => {
           code: 'invalid_type',
           expected: 'string',
           received: 'undefined',
-          path: ['chains', '31337', 'globalSponsorLowBalanceWarn'],
+          path: ['chains', '31337', 'funderDepositoryLowBalanceWarn'],
           message: 'Required',
         },
         {

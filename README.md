@@ -41,15 +41,11 @@ so. This is to prevent scenarios where dev code sends real funds to unrecoverabl
 #### `chains`
 
 - `chains.<chainId>.rpc`: The RPC provider URL.
-- `chains.<chainId>.topUpAmount`: the amount to top up in the native token. The value should be in full token units
-  (i.e. in ethers or matics).
-- `chains.<chainId>.lowBalance`: The wallet balance value below which a top up is triggered. The value should be in full
-  token units (i.e. in ethers or matics).
-- `chains.<chainId>.globalSponsorLowBalanceWarn`: The global top up wallet balance below which an alert will be
+- `chains.<chainId>.funderDepositoryLowBalanceWarn`: The FunderDepository contract balance below which an alert will be
   triggered. The value should be in full token units (i.e. in ethers or matics).
+- `chains.<chainId>.topUpWalletLowBalanceWarn`: The top up wallet balance below which an alert will be triggered. The
+  value should be in full token units (i.e. in ethers or matics).
 - `chains.<chainId>.options`: The chain specific options used to get the gas price for top up transactions.
-
-- `topUpMnemonic`: The mnemonic of the top up wallet.
 
 - `opsGenieConfig.apiKey`: The Ops Genie api key.
 - `opsGenieConfig.responders[n].team` (optional): The Ops Genie responder type. If left undefined this will be inferred
@@ -76,3 +72,7 @@ so. This is to prevent scenarios where dev code sends real funds to unrecoverabl
 - `<chainId>[n].apiName` (optional): The name of the API provider.
 - `<chainId>[n].providerXpub`: The extended public key of the sponsor address.
 - `<chainId>[n].sponsor`: The sponsor address to derive the destination wallet.
+- `<chainId>[n].topUpAmount`: The amount to top up in the native token. The value should be in full token units (i.e. in
+  ethers or matics).
+- `<chainId>[n].lowBalance`: The wallet balance value below which a top up is triggered. The value should be in full
+  token units (i.e. in ethers or matics).

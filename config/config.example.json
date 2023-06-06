@@ -2,7 +2,9 @@
   "chains": {
     "1": {
       "rpc": "https://eth-mainnet.alchemyapi.io/v2/something",
-      "globalSponsorLowBalanceWarn": "3",
+      "funderAddress": "0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B",
+      "funderDepositoryOwner": "0x81bc85f329cDB28936FbB239f734AE495121F9A6",
+      "topUpWalletLowBalanceWarn": "0.05",
       "options": {
         "fulfillmentGasLimit": 500000,
         "gasPriceOracle": [
@@ -29,7 +31,9 @@
     },
     "3": {
       "rpc": "https://eth-ropsten.alchemyapi.io/v2/something",
-      "globalSponsorLowBalanceWarn": "2",
+      "funderAddress": "0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B",
+      "funderDepositoryOwner": "0x81bc85f329cDB28936FbB239f734AE495121F9A6",
+      "topUpWalletLowBalanceWarn": "0.01",
       "options": {
         "fulfillmentGasLimit": 500000,
         "gasPriceOracle": [
@@ -55,7 +59,6 @@
       }
     }
   },
-  "topUpMnemonic": "test test tes...",
   "opsGenieConfig": {
     "apiKey": "opsgenie-api-key",
     "responders": [

@@ -4,7 +4,7 @@ export const buildConfig = (): Config => ({
   chains: {
     '31337': {
       rpc: 'http://127.0.0.1:8545/',
-      globalSponsorLowBalanceWarn: '3',
+      funderDepositoryLowBalanceWarn: '3',
       options: {
         fulfillmentGasLimit: 123456, // The wallet-watcher doesn't currently use this but it is required in the ChainOptions type
         gasPriceOracle: [
@@ -30,7 +30,6 @@ export const buildConfig = (): Config => ({
       },
     },
   },
-  topUpMnemonic: 'test test test test test test test test test test test junk',
   opsGenieConfig: {
     apiKey: 'opsgenie-api-key',
     responders: [
