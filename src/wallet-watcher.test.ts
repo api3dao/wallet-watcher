@@ -293,7 +293,7 @@ describe('walletWatcher', () => {
         .mockImplementation(async () => [[{ message: 'Returned gas price', level: 'INFO' }], gasTarget] as any);
       nonceManagerSendTransactionSpy.mockImplementation(async () => transactionResponseMock);
 
-      await walletWatcher.checkAndFundWallet(walletAndBalance, config, globalSponsors);
+      await walletWatcher.checkAndReturnCalldata(walletAndBalance, config, globalSponsors);
 
       expect(nonceManagerSendTransactionSpy).toHaveBeenCalledWith({
         to: providerWallet.address,
@@ -343,7 +343,7 @@ describe('walletWatcher', () => {
         .mockImplementation(async () => [[{ message: 'Returned gas price', level: 'INFO' }], gasTarget] as any);
       nonceManagerSendTransactionSpy.mockImplementation(async () => transactionResponseMock);
 
-      await walletWatcher.checkAndFundWallet(walletAndBalance, config, globalSponsors);
+      await walletWatcher.checkAndReturnCalldata(walletAndBalance, config, globalSponsors);
 
       expect(nonceManagerSendTransactionSpy).not.toHaveBeenCalled();
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
@@ -376,7 +376,7 @@ describe('walletWatcher', () => {
       nonceManagerSendTransactionSpy.mockImplementation(async () => transactionResponseMock);
       const walletAndBalanceOnce = { ...walletAndBalance, balance: ethers.utils.parseEther('3') };
 
-      await walletWatcher.checkAndFundWallet(walletAndBalanceOnce, config, globalSponsors);
+      await walletWatcher.checkAndReturnCalldata(walletAndBalanceOnce, config, globalSponsors);
 
       expect(nonceManagerSendTransactionSpy).not.toHaveBeenCalled();
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
@@ -401,7 +401,7 @@ describe('walletWatcher', () => {
       nonceManagerSendTransactionSpy.mockImplementation(async () => transactionResponseMock);
       const walletAndBalanceOnce = { ...walletAndBalance, balance: ethers.utils.parseEther('3') };
 
-      await walletWatcher.checkAndFundWallet(walletAndBalanceOnce, config, []);
+      await walletWatcher.checkAndReturnCalldata(walletAndBalanceOnce, config, []);
 
       expect(nonceManagerSendTransactionSpy).not.toHaveBeenCalled();
       expect(sendToOpsGenieLowLevelSpy).toHaveBeenCalledWith(
@@ -433,7 +433,7 @@ describe('walletWatcher', () => {
         chains: { [chainId]: { rpc: 'http://127.0.0.1:8545/' } },
       } as any;
 
-      await walletWatcher.checkAndFundWallet(walletAndBalance, configOnce, globalSponsors);
+      await walletWatcher.checkAndReturnCalldata(walletAndBalance, configOnce, globalSponsors);
 
       expect(nonceManagerSendTransactionSpy).not.toHaveBeenCalled();
       expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith(
@@ -461,7 +461,7 @@ describe('walletWatcher', () => {
         throw txError;
       });
 
-      await walletWatcher.checkAndFundWallet(walletAndBalance, config, globalSponsors);
+      await walletWatcher.checkAndReturnCalldata(walletAndBalance, config, globalSponsors);
 
       expect(nonceManagerSendTransactionSpy).toHaveBeenCalledWith({
         to: providerWallet.address,
@@ -503,7 +503,7 @@ describe('walletWatcher', () => {
         .mockImplementation(async () => [[{ message: 'Returned gas price', level: 'INFO' }], gasTarget] as any);
       nonceManagerSendTransactionSpy.mockImplementation(async () => transactionResponseMock);
 
-      await walletWatcher.checkAndFundWallet(walletAndBalance, config, globalSponsors);
+      await walletWatcher.checkAndReturnCalldata(walletAndBalance, config, globalSponsors);
 
       expect(nonceManagerSendTransactionSpy).toHaveBeenCalledWith({
         to: providerWallet.address,

@@ -7,6 +7,7 @@ import {
   sendToOpsGenieLowLevel,
 } from '@api3/operations-utilities';
 import { go } from '@api3/promise-utils';
+import { Context, ScheduledEvent, ScheduledHandler } from 'aws-lambda';
 import 'source-map-support/register';
 import { loadConfig, loadWallets } from './config';
 import { runWalletWatcher } from './wallet-watcher';
@@ -16,7 +17,10 @@ import { runWalletWatcher } from './wallet-watcher';
  *
  * @param _event
  */
-export const walletWatcherHandler = async (_event: any = {}) => {
+export const walletWatcherHandler: ScheduledHandler = async (
+  _event: ScheduledEvent,
+  _context: Context
+): Promise<void> => {
   log('Starting Wallet Watcher');
   const startedAt = new Date();
   const config = loadConfig(path.join(__dirname, '../config/config.json'));

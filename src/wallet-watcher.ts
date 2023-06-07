@@ -8,10 +8,11 @@ import {
   sendToOpsGenieLowLevel,
   settleAndCheckForPromiseRejections,
 } from '@api3/operations-utilities';
+import { go } from '@api3/promise-utils';
 import { NonceManager } from '@ethersproject/experimental';
 import { StandardMerkleTree } from '@openzeppelin/merkle-tree';
 import { ethers } from 'ethers';
-import { groupBy, isNil, uniqBy } from 'lodash';
+import { groupBy, isEmpty, isNil, uniqBy } from 'lodash';
 import { API3_XPUB } from './constants';
 import { ChainState, ChainStates, ChainsConfig, Config, Wallet, WalletStatus, Wallets } from './types';
 
@@ -74,15 +75,17 @@ export const intializeChainStates = (chains: ChainsConfig) => {
     throw new Error('TOP_UP_WALLET_PRIVATE_KEY environment variable is not set');
   }
   return Object.entries(chains).reduce((acc: ChainStates, [chainId, chain]) => {
-    const provider = getProvider(chain.rpc, getChainName(chainId) ?? chainId, chainId);
+    const chainName = getChainName(chainId) ?? chainId;
+    const provider = getProvider(chain.rpc, chainName, chainId);
 
     return {
       ...acc,
       [chainId]: {
         ...chain,
         chainId,
+        chainName,
         provider,
-        nonceMananger: new NonceManager(new ethers.Wallet(topUpWalletPrivateKey, provider)),
+        topUpWallet: new NonceManager(new ethers.Wallet(topUpWalletPrivateKey, provider)),
         funderContract: new ethers.Contract(chain.funderAddress, funderAbi, provider),
       },
     };
@@ -105,8 +108,7 @@ export const deriveSponsorWalletAddress = (sponsor: string, xpub: string, protoc
  * Sets or overrides the wallet.address field based on the walletType
  *
  * @param wallet parsed wallet object from wallets.json
- * @returns the original wallet object but it sets/overrides the address field
- * with the derived sponsor wallet if walletType is not API nor Provider
+ * @returns the original wallet object but it sets/overrides the address field with the derived sponsor wallet if walletType is not API nor Provider
  */
 export const determineWalletAddress = (wallet: Wallet) => {
   switch (wallet.walletType) {
@@ -136,11 +138,9 @@ export const determineWalletAddress = (wallet: Wallet) => {
 export const getWalletsAndBalances = async (chainStates: ChainStates, wallets: Wallets) => {
   // Sets or overrides address field with derived sponsor wallet address if walletType is not API nor Provider
   const walletsWithDerivedAddresses = Object.entries(wallets).flatMap(([chainId, wallets]) => {
-    const chainName = getChainName(chainId) ?? chainId;
     return wallets.flatMap((wallet) => ({
       ...determineWalletAddress(wallet),
       chainId,
-      chainName,
     }));
   });
 
@@ -152,8 +152,10 @@ export const getWalletsAndBalances = async (chainStates: ChainStates, wallets: W
 
   // Fetch balances for each wallet
   const walletPromises = walletsToAssess.map(async (wallet) => {
-    const balance = await chainStates[wallet.chainId].provider.getBalance(wallet.address);
-    if (!balance) throw new Error(`Unable to get balance for chain ${wallet.chainName} and address ${wallet.address}`);
+    const chainState = chainStates[wallet.chainId];
+    const balance = await chainState.provider.getBalance(wallet.address);
+    if (!balance)
+      throw new Error(`Unable to get balance for chain ${chainState.chainName} and address ${wallet.address}`);
     return {
       ...wallet,
       balance,
@@ -176,19 +178,19 @@ export const getWalletsAndBalances = async (chainStates: ChainStates, wallets: W
 /**
  * Builds a Merkle tree using wallet addresses, lowBalances and topUpAmounts as leaves
  *
- * @param leaves // an array of wallets
+ * @param wallets an array of wallets
  * @returns the merkle tree
  */
-export const buildMerkleTree = (leaves: WalletStatus[]) => {
+export const buildMerkleTree = (wallets: WalletStatus[]) => {
   const tree = StandardMerkleTree.of(
-    leaves.map(({ address, lowBalance, topUpAmount }) => {
+    wallets.map(({ address, lowBalance, topUpAmount }) => {
       return [address, ethers.utils.parseEther(lowBalance), ethers.utils.parseEther(topUpAmount)];
     }),
     ['address', 'uint256', 'uint256']
   );
   // console.log('Merkle Root:', tree.root);
   // console.log('Merkle Dump:', tree.dump());
-  console.log('Merkle Render:', tree.render());
+  // console.log('Merkle Render:', tree.render());
   // for (const [i, v] of tree.entries()) {
   //   console.log('value:', v);
   //   console.log('proof:', tree.getProof(i));
@@ -197,161 +199,187 @@ export const buildMerkleTree = (leaves: WalletStatus[]) => {
 };
 
 /**
- * Takes a list of wallets with their embedded balances, compares the balance to configured minimums and executes top
- * up transactions if low balance criteria is met.
+ * Checks the wallet balance against configured thresholds and if the balance is below the threshold
+ * then it returns the ABI encoded calldata with all the parameters required to fund the wallet
  *
- * @param wallet a wallet object containing a wallet address and balance
  * @param config parsed config.json
- * @param topUpWallets a set of wallets used as the source of funds for top-ups. Different wallets represent funds on different chains.
- * @param funderContracts a list of funder contracts for each chain
+ * @param wallet a wallet object containing a wallet address and balance
+ * @param chainState a chain object containing provider, top up wallet and Funder contract instances
+ * @param merkleTree a merkle tree object containing the wallet addresses, lowBalances and topUpAmounts as leaves
+ * @returns the ABI encoded calldata for the Funder contract to fund the wallet
  */
-export const checkAndFundWallet = async (
+export const checkAndReturnCalldata = async (
   config: Omit<Config, 'chains'>,
   wallet: WalletStatus,
   chainState: ChainState,
   merkleTree: StandardMerkleTree<(string | ethers.BigNumber)[]>
 ) => {
+  const errorCheckingWalletAlias = `error-while-checking-wallet-${ethers.utils.keccak256(
+    ethers.utils.toUtf8Bytes(`${wallet.address}-${wallet.chainId}`)
+  )}`;
   try {
-    // Close previous cycle alerts
-    await closeOpsGenieAlertWithAlias(`freshly-topped-up-${wallet.address}-${wallet.chainName}`, config.opsGenieConfig);
-
-    const topUpWalletBalanceThreshold = ethers.utils.parseEther(chainState.topUpWalletLowBalanceWarn);
-    if ((await chainState.nonceMananger.getBalance()).lt(topUpWalletBalanceThreshold)) {
-      await sendToOpsGenieLowLevel(
-        {
-          message: `Low balance on top-up wallet for chain ${wallet.chainName}`,
-          alias: `low-top-up-balance-${wallet.chainName}`,
-          priority: 'P2',
-        },
-        config.opsGenieConfig
-      );
-    } else {
-      await closeOpsGenieAlertWithAlias(`low-top-up-balance-${wallet.chainName}`, config.opsGenieConfig);
-    }
+    await closeOpsGenieAlertWithAlias(errorCheckingWalletAlias, config.opsGenieConfig);
 
     // TODO: should we just filter out these sponsor wallets while fetching the balance?
     const walletBalanceThreshold = ethers.utils.parseEther(wallet.lowBalance);
-    console.log(
-      '🚀 ~ file: wallet-watcher.ts:252 ~ wallet.balance.gt(walletBalanceThreshold):',
-      wallet.balance.gt(walletBalanceThreshold)
-    );
     if (wallet.balance.gt(walletBalanceThreshold)) {
-      return;
+      // TODO: add some debug log message indicating that there is no need to call the Funder contract?
+      return null;
     }
 
-    if (!chainState.funderContract) {
-      await sendToOpsGenieLowLevel(
-        {
-          message: `Can't find a valid Funder contract for ${wallet.address} on ${wallet.chainName}`,
-          alias: `no-funder-contract-${wallet.address}-${wallet.chainName}`,
-          priority: 'P1',
-        },
-        config.opsGenieConfig
-      );
-      return;
-    }
-    await closeOpsGenieAlertWithAlias(
-      `no-funder-contract-${wallet.address}-${wallet.chainName}`,
-      config.opsGenieConfig
-    );
-
-    const [logs, gasTarget] = await getGasPrice(chainState.provider, chainState.options);
-    logs.forEach(({ level, message }) => log(message, level === 'INFO' || level === 'ERROR' ? level : undefined));
-
-    const { gasLimit: _gasLimit /*...restGasTarget*/ } = gasTarget;
-
-    if (!process.env.WALLET_ENABLE_SEND_FUNDS) {
-      await sendToOpsGenieLowLevel(
-        {
-          message: `(would have) Just topped up ${wallet.address} on ${wallet.chainName}`,
-          alias: `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
-          description: [
-            `DID NOT ACTUALLY SEND FUNDS! WALLET_ENABLE_SEND_FUNDS is not set`,
-            `Type of wallet: ${wallet.walletType}`,
-            `Address: ${config.explorerUrls[wallet.chainId]}address/${wallet.address} )`,
-            `Transaction: ${config.explorerUrls[wallet.chainId]}tx/not-applicable`,
-          ].join('\n'),
-          priority: 'P5',
-        },
-        config.opsGenieConfig
-      );
-
-      await closeOpsGenieAlertWithAlias(
-        `error-while-topping-up-wallet-${wallet.address}-${wallet.chainName}`,
-        config.opsGenieConfig
-      );
-
-      return;
-    }
-
-    const leaf = merkleTree.leafHash([
-      wallet.address,
-      ethers.utils.parseEther(wallet.lowBalance),
-      ethers.utils.parseEther(wallet.topUpAmount),
-    ]);
-    console.log('🚀 ~ file: wallet-watcher.ts:314 ~ leaf:', leaf);
+    // const leaf = merkleTree.leafHash([
+    //   wallet.address,
+    //   ethers.utils.parseEther(wallet.lowBalance),
+    //   ethers.utils.parseEther(wallet.topUpAmount),
+    // ]);
+    // console.log('🚀 ~ file: wallet-watcher.ts:314 ~ leaf:', leaf);
 
     const proof = merkleTree.getProof([
       wallet.address,
       ethers.utils.parseEther(wallet.lowBalance),
       ethers.utils.parseEther(wallet.topUpAmount),
     ]);
-    console.log('🚀 ~ file: wallet-watcher.ts:309 ~ proof:', proof);
+    // console.log('🚀 ~ file: wallet-watcher.ts:309 ~ proof:', proof);
 
-    // // TODO: batched tryMulticall
-    // const receipt = await chainState.funderContract.contract.fund(
-    //   chainState.funderDepositoryOwner,
-    //   merkleTree.root,
-    //   proof,
-    //   wallet.address,
-    //   ethers.utils.parseEther(wallet.lowBalance),
-    //   ethers.utils.parseEther(wallet.topUpAmount),
-    //   {
-    //     ...restGasTarget,
-    //   }
-    // );
-
-    // // const receipt = await topUpWallet.nonceMananger.sendTransaction({
-    // //   to: wallet.address,
-    // //   value: parseEther(wallet.topUpAmount),
-    // //   ...restGasTarget,
-    // // });
-
-    // await receipt.wait(1);
-
-    // await sendToOpsGenieLowLevel(
-    //   {
-    //     message: `Just topped up ${wallet.address} on ${wallet.chainName}`,
-    //     alias: `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
-    //     description: [
-    //       `Type of wallet: ${wallet.walletType}`,
-    //       `Address: ${config.explorerUrls[wallet.chainId]}address/${wallet.address} )`,
-    //       `Transaction: ${config.explorerUrls[wallet.chainId]}tx/${
-    //         receipt?.hash ?? 'WALLET_ENABLE_SEND_FUNDS disabled'
-    //       }`,
-    //     ].join('\n'),
-    //     priority: 'P5',
-    //   },
-    //   config.opsGenieConfig
-    // );
-
-    await closeOpsGenieAlertWithAlias(
-      `error-while-topping-up-wallet-${wallet.address}-${wallet.chainName}`,
-      config.opsGenieConfig
+    return chainState.funderContract.interface.encodeFunctionData(
+      'fund(address,bytes32,bytes32[],address,uint256,uint256)',
+      [
+        chainState.funderDepositoryOwner,
+        merkleTree.root,
+        proof,
+        wallet.address,
+        ethers.utils.parseEther(wallet.lowBalance),
+        ethers.utils.parseEther(wallet.topUpAmount),
+      ]
     );
   } catch (e) {
     await sendToOpsGenieLowLevel(
       {
-        message: 'An error occurred while trying to up up a wallet',
-        alias: `error-while-topping-up-wallet-${wallet.address}-${wallet.chainName}`,
+        message: `An unexpected error occurred while trying to check if wallet ${wallet.address} on chain ${chainState.chainName} (id: ${chainState.chainId}) needs to be topped up`,
+        alias: errorCheckingWalletAlias,
         priority: 'P1',
         description: `Error: ${e}\nStack Trace: ${(e as Error)?.stack}`,
       },
       config.opsGenieConfig
     );
 
+    return null;
+  }
+};
+
+/**
+ *
+ * @param config parsed config.json
+ * @param chainState a chain object containing provider, top up wallet and Funder contract instances
+ * @param wallets an array of wallet objects containing a wallet address and balance
+ * @param merkleTree a merkle tree object containing the wallet addresses, lowBalances and topUpAmounts as leaves
+ * @returns a promise that resolves when the top up transaction is sent or when no wallets need topping up
+ */
+const topUpWallets = async (
+  config: Omit<Config, 'chains'>,
+  chainState: ChainState,
+  wallets: WalletStatus[],
+  merkleTree: StandardMerkleTree<(string | ethers.BigNumber)[]>
+) => {
+  const topUpWalletBalanceThreshold = ethers.utils.parseEther(chainState.topUpWalletLowBalanceWarn);
+  // TODO: what should we do if balance is 0 or even less than the gas cost of the tx?
+  //       it seems reasonably that we should not even try sending the tx
+  const topUpWalletAddress = await chainState.topUpWallet.getAddress();
+  const lowBalanceTopUpWalletAlias = `low-top-up-balance-${ethers.utils.keccak256(
+    ethers.utils.toUtf8Bytes(`${topUpWalletAddress}-${chainState.chainId}`)
+  )}`;
+  if ((await chainState.topUpWallet.getBalance()).lt(topUpWalletBalanceThreshold)) {
+    await sendToOpsGenieLowLevel(
+      {
+        message: `Low balance on top-up wallet ${topUpWalletAddress} for chain ${chainState.chainName} (id: ${chainState.chainId})`,
+        alias: lowBalanceTopUpWalletAlias,
+        priority: 'P2',
+      },
+      config.opsGenieConfig
+    );
+  } else {
+    await closeOpsGenieAlertWithAlias(lowBalanceTopUpWalletAlias, config.opsGenieConfig);
+  }
+
+  const calldatas = await wallets.reduce(async (promisedAcc: Promise<string[]>, wallet) => {
+    const previous = await promisedAcc;
+
+    const calldata = await checkAndReturnCalldata(config, wallet, chainState, merkleTree);
+    if (isNil(calldata)) {
+      return previous;
+    }
+    return [...previous, calldata];
+  }, Promise.resolve([]));
+
+  // console.log('🚀 ~ file: wallet-watcher.ts:351 ~ calldatas ~ calldatas:', chainState.chainId, calldatas);
+
+  if (isEmpty(calldatas)) {
+    // TODO: message required?
     return;
   }
+
+  // Close previous cycle alerts
+  const aliasSuffix = ethers.utils.toUtf8Bytes(`${calldatas.join('')}-${chainState.chainId}`);
+  const toppedUpAlias = `freshly-topped-up-${ethers.utils.keccak256(aliasSuffix)}`;
+  await closeOpsGenieAlertWithAlias(toppedUpAlias, config.opsGenieConfig);
+  const errorSendingTxAlias = `error-while-sending-tx-${ethers.utils.keccak256(aliasSuffix)}`;
+  await closeOpsGenieAlertWithAlias(errorSendingTxAlias, config.opsGenieConfig);
+
+  const [logs, gasTarget] = await getGasPrice(chainState.provider, chainState.options);
+  logs.forEach(({ level, message }) => log(message, level === 'INFO' || level === 'ERROR' ? level : undefined));
+
+  const { gasLimit: _gasLimit, ...restGasTarget } = gasTarget;
+
+  let txHash = 'not-applicable';
+  if (process.env.WALLET_ENABLE_SEND_FUNDS && process.env.WALLET_ENABLE_SEND_FUNDS !== 'false') {
+    const txResult = await go(
+      () => chainState.funderContract.connect(chainState.topUpWallet.signer).tryMulticall(calldatas, restGasTarget),
+      {
+        totalTimeoutMs: 15000,
+        retries: 2,
+        delay: { type: 'static', delayMs: 5000 },
+      }
+    );
+    // console.log('🚀 ~ file: wallet-watcher.ts:364 ~ Object.entries ~ txResult:', txResult);
+    // TODO: check success etc
+    if (txResult.error) {
+      await sendToOpsGenieLowLevel(
+        {
+          message: `An unexpected error occurred while sending transaction on chain ${chainState.chainName} (id: ${chainState.chainId})`,
+          alias: errorSendingTxAlias,
+          priority: 'P1',
+          description: `Error: ${txResult.error}\nStack Trace: ${txResult.error?.stack}`,
+        },
+        config.opsGenieConfig
+      );
+    }
+
+    txHash = txResult.data.hash;
+  }
+
+  await sendToOpsGenieLowLevel(
+    {
+      message: `Just topped up wallet(s) on chain ${chainState.chainName} (id: ${chainState.chainId})`,
+      alias: toppedUpAlias,
+      description: [
+        ...(process.env.WALLET_ENABLE_SEND_FUNDS
+          ? ['*** Tx not sent because WALLET_ENABLE_SEND_FUNDS is false or undefined ***']
+          : []),
+        `Transaction: ${config.explorerUrls[chainState.chainId]}tx/${txHash}`,
+        'Wallets: ',
+        ...wallets.map((wallet) => {
+          return [
+            `\tWallet type: ${wallet.walletType}`,
+            `\tAddress: ${config.explorerUrls[wallet.chainId]}address/${wallet.address} )`,
+            `\tLow Balance: ${wallet.lowBalance}`,
+            `\tTop Up Amount: ${wallet.topUpAmount}`,
+          ];
+        }),
+      ].join('\n'),
+      priority: 'P5',
+    },
+    config.opsGenieConfig
+  );
 };
 
 /**
@@ -366,11 +394,11 @@ export const runWalletWatcher = async ({ chains, ...config }: Config, wallets: W
   const walletsByChainId = groupBy(walletsAndBalances, 'chainId');
 
   await settleAndCheckForPromiseRejections(
-    Object.entries(walletsByChainId).flatMap(([chainId, chainWallets]) => {
+    Object.entries(walletsByChainId).map(async ([chainId, wallets]) => {
       const chainState = chainStates[chainId];
-      const merkleTree = buildMerkleTree(chainWallets);
+      const merkleTree = buildMerkleTree(wallets);
 
-      return chainWallets.map((wallet) => checkAndFundWallet(config, wallet, chainState, merkleTree));
+      await topUpWallets(config, chainState, wallets, merkleTree);
     })
   );
 };

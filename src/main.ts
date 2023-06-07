@@ -14,7 +14,7 @@ export const runAndHandleErrors = (fn: () => Promise<unknown>) => {
 };
 
 const main = async () => {
-  await settleAndCheckForPromiseRejections([walletWatcherHandler({})]);
+  await settleAndCheckForPromiseRejections([walletWatcherHandler({} as any, {} as any, {} as any) as any]);
 };
 
 runAndHandleErrors(main);

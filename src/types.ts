@@ -99,16 +99,16 @@ export type WalletType = z.infer<typeof walletTypeSchema>;
 export type EvmAddress = z.infer<typeof config.evmAddressSchema>;
 
 export type WalletStatus = Wallet & {
-  balance: ethers.BigNumber;
-  chainName: string;
   chainId: string;
   address: EvmAddress;
+  balance: ethers.BigNumber;
 };
 
 export type ChainState = ChainConfig & {
   chainId: string;
+  chainName: string;
   provider: ethers.providers.StaticJsonRpcProvider;
-  nonceMananger: NonceManager;
+  topUpWallet: NonceManager;
   funderContract: ethers.Contract;
 };
 
