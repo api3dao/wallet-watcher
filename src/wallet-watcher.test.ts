@@ -14,7 +14,6 @@ describe('walletWatcher', () => {
   const wallets = fixtures.buildWallets();
   const config = fixtures.buildConfig();
   console.log('CONFIG', config);
-  const networks = fixtures.buildNetworks();
   const apiName = 'api3';
   const chainName = 'localhost';
   const chainId = '31337';
@@ -38,7 +37,7 @@ describe('walletWatcher', () => {
   const balance = ethers.utils.parseEther('0');
   const walletAndBalance = { ...providerWallet, chainName, chainId, provider, balance };
   const sponsor = new ethersExperimental.NonceManager(
-    ethers.Wallet.fromMnemonic(config.topUpMnemonic).connect(
+    ethers.Wallet.fromMnemonic('TODO: FIX ME').connect(
       new ethers.providers.StaticJsonRpcProvider(config.chains[chainId].rpc, {
         chainId: parseInt(chainId),
         name: chainId,
@@ -83,16 +82,13 @@ describe('walletWatcher', () => {
       console.log('listOpenOpsGenieAlerts was called');
       return '' as any;
     });
-
-    // Mock airnode-protocol networks
-    jest.spyOn(walletWatcher, 'getNetworks').mockImplementationOnce(() => networks);
   });
 
   describe('getGlobalSponsors', () => {
     it('returns global sponsors', () => {
-      const globalSponsors = walletWatcher.intializeChainStates(config);
+      const globalSponsors = walletWatcher.intializeChainStates(config.chains);
       const sponsor = new ethersExperimental.NonceManager(
-        ethers.Wallet.fromMnemonic(config.topUpMnemonic).connect(
+        ethers.Wallet.fromMnemonic('TODO: FIX ME').connect(
           new ethers.providers.StaticJsonRpcProvider(config.chains[chainId].rpc, {
             chainId: parseInt(chainId),
             name: chainId,
@@ -109,7 +105,7 @@ describe('walletWatcher', () => {
     it('derives sponsor address', () => {
       const xpub =
         'xpub6Cqm1pKEocHJDZ6Ghdau2wmwaCxRUfnmFUrEvuTcsjj6c4bVMuq8MCypeJxMeYNgCupj23hrrpkWmdrTB7Q5MpGFMFtVuyYx7nGSRXhc8rH';
-      const wallet = ethers.Wallet.fromMnemonic(config.topUpMnemonic);
+      const wallet = ethers.Wallet.fromMnemonic('TODO: FIX ME');
       const sponsorAddress = walletWatcher.deriveSponsorWalletAddress(wallet.address, xpub, '2');
 
       expect(sponsorAddress).toEqual('0x31D50143dC863Feab4b35834415B7b3F9f6f6B35');

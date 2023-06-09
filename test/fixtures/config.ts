@@ -4,7 +4,9 @@ export const buildConfig = (): Config => ({
   chains: {
     '31337': {
       rpc: 'http://127.0.0.1:8545/',
-      funderDepositoryLowBalanceWarn: '3',
+      funderAddress: '0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B',
+      funderDepositoryOwner: '0x81bc85f329cDB28936FbB239f734AE495121F9A6',
+      topUpWalletLowBalanceWarn: '3',
       options: {
         fulfillmentGasLimit: 123456, // The wallet-watcher doesn't currently use this but it is required in the ChainOptions type
         gasPriceOracle: [

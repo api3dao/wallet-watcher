@@ -16,7 +16,6 @@ const oldEnv = process.env;
 describe('walletWatcher', () => {
   const config = fixtures.buildConfig();
   const wallets = fixtures.buildWallets();
-  const networks = fixtures.buildNetworks();
   const chainName = 'localhost';
   const chainId = '31337';
   const globalSponsorAddress = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
@@ -71,9 +70,6 @@ describe('walletWatcher', () => {
       console.log('listOpenOpsGenieAlerts was called');
       return '' as any;
     });
-
-    // Mock airnode-protocol networks
-    jest.spyOn(walletWatcher, 'getNetworks').mockImplementationOnce(() => networks);
   });
 
   describe('runWalletWatcher', () => {

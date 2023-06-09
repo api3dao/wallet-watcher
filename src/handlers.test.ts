@@ -15,7 +15,6 @@ const oldEnv = process.env;
 describe('walletWatcherHandler', () => {
   const config = fixtures.buildConfig();
   const wallets = fixtures.buildWallets();
-  const networks = fixtures.buildNetworks();
   const sponsorBalance = ethers.utils.parseEther('10');
   const balance = ethers.utils.parseEther('0');
   const gasTarget = {
@@ -70,7 +69,6 @@ describe('walletWatcherHandler', () => {
     process.env.WALLET_ENABLE_SEND_FUNDS = 'true';
     jest.spyOn(configFunctions, 'loadConfig').mockImplementationOnce(() => config);
     jest.spyOn(configFunctions, 'loadWallets').mockImplementationOnce(() => wallets);
-    jest.spyOn(walletWatcher, 'getNetworks').mockImplementationOnce(() => networks);
 
     const nonceManagerSendTransactionSpy = jest.spyOn(ethersExperimental.NonceManager.prototype, 'sendTransaction');
     jest.spyOn(ethersExperimental.NonceManager.prototype, 'getBalance').mockImplementation(async () => sponsorBalance);
@@ -80,7 +78,7 @@ describe('walletWatcherHandler', () => {
       .mockImplementation(async () => [[{ message: 'Returned gas price', level: 'INFO' }], gasTarget] as any);
     nonceManagerSendTransactionSpy.mockImplementation(async () => transactionResponseMock);
 
-    await walletHandlers.walletWatcherHandler({});
+    (await walletHandlers.walletWatcherHandler({} as any, {} as any, {} as any)) as any;
 
     expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith('serverless-wallet-watcher', config.opsGenieConfig);
     expect(sendOpsGenieHeartbeatSpy).toHaveBeenCalledWith('wallet-watcher', config.opsGenieConfig);
@@ -90,13 +88,12 @@ describe('walletWatcherHandler', () => {
     process.env.WALLET_ENABLE_SEND_FUNDS = 'true';
     jest.spyOn(configFunctions, 'loadConfig').mockImplementationOnce(() => config);
     jest.spyOn(configFunctions, 'loadWallets').mockImplementationOnce(() => wallets);
-    jest.spyOn(walletWatcher, 'getNetworks').mockImplementationOnce(() => networks);
 
     const error = new Error('Unexpected error during runWalletWatcher');
     jest.spyOn(walletWatcher, 'runWalletWatcher').mockImplementation(() => {
       throw error;
     });
-    await walletHandlers.walletWatcherHandler({});
+    (await walletHandlers.walletWatcherHandler({} as any, {} as any, {} as any)) as any;
 
     expect(sendToOpsGenieLowLevelSpy).toHaveBeenCalledWith(
       {

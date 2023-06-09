@@ -46,7 +46,21 @@ describe('config.json', () => {
           code: 'invalid_type',
           expected: 'string',
           received: 'undefined',
-          path: ['chains', '31337', 'funderDepositoryLowBalanceWarn'],
+          path: ['chains', '31337', 'funderAddress'],
+          message: 'Required',
+        },
+        {
+          code: 'invalid_type',
+          expected: 'string',
+          received: 'undefined',
+          path: ['chains', '31337', 'funderDepositoryOwner'],
+          message: 'Required',
+        },
+        {
+          code: 'invalid_type',
+          expected: 'string',
+          received: 'undefined',
+          path: ['chains', '31337', 'topUpWalletLowBalanceWarn'],
           message: 'Required',
         },
         {
