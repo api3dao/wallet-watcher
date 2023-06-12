@@ -42,34 +42,6 @@ describe('config.json', () => {
           path: ['chains', '31337', 'rpc'],
           message: 'Required',
         },
-        {
-          code: 'invalid_type',
-          expected: 'string',
-          received: 'undefined',
-          path: ['chains', '31337', 'funderAddress'],
-          message: 'Required',
-        },
-        {
-          code: 'invalid_type',
-          expected: 'string',
-          received: 'undefined',
-          path: ['chains', '31337', 'funderDepositoryOwner'],
-          message: 'Required',
-        },
-        {
-          code: 'invalid_type',
-          expected: 'string',
-          received: 'undefined',
-          path: ['chains', '31337', 'topUpWalletLowBalanceWarn'],
-          message: 'Required',
-        },
-        {
-          code: 'invalid_type',
-          expected: 'object',
-          received: 'undefined',
-          path: ['chains', '31337', 'options'],
-          message: 'Required',
-        },
       ])}`
     );
   });
@@ -90,8 +62,7 @@ describe('wallets.json', () => {
           walletType: 'Provider',
           providerXpub:
             'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
-          topUpAmount: '0.1',
-          lowBalance: '0.2',
+          lowThreshold: { value: 0.2, unit: 'ether' },
         },
       ],
     };
@@ -120,8 +91,7 @@ describe('wallets.json', () => {
           walletType: 'Provider-Sponsor',
           providerXpub:
             'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
-          topUpAmount: '0.1',
-          lowBalance: '0.2',
+          lowThreshold: { value: 0.2, unit: 'ether' },
         },
       ],
     };
@@ -149,8 +119,7 @@ describe('wallets.json', () => {
           apiName: 'api3',
           walletType: 'Provider-Sponsor',
           sponsor: '0x9fEe9F24ab79adacbB51af82fb82CFb9D818c6d9',
-          topUpAmount: '0.1',
-          lowBalance: '0.2',
+          lowThreshold: { value: 0.2, unit: 'ether' },
         },
       ],
     };
@@ -171,16 +140,13 @@ describe('wallets.json', () => {
     );
   });
 
-  it('throws on missing topUpAmount', () => {
+  it('throws on missing lowThreshold', () => {
     const invalidWallets = {
       1: [
         {
           apiName: 'api3',
-          walletType: 'Provider-Sponsor',
-          providerXpub:
-            'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
-          sponsor: '0x9fEe9F24ab79adacbB51af82fb82CFb9D818c6d9',
-          lowBalance: '0.2',
+          walletType: 'API3',
+          address: '0x9fEe9F24ab79adacbB51af82fb82CFb9D818c6d9',
         },
       ],
     };
@@ -192,25 +158,23 @@ describe('wallets.json', () => {
       `Invalid wallets.json file: ${new z.ZodError([
         {
           code: 'invalid_type',
-          expected: 'string',
+          expected: 'object',
           received: 'undefined',
-          path: ['1', 0, 'topUpAmount'],
+          path: ['1', 0, 'lowThreshold'],
           message: 'Required',
         },
       ])}`
     );
   });
 
-  it('throws on missing lowBalance', () => {
+  it('throws on invalid lowThreshold', () => {
     const invalidWallets = {
       1: [
         {
           apiName: 'api3',
-          walletType: 'Provider-Sponsor',
-          providerXpub:
-            'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
-          sponsor: '0x9fEe9F24ab79adacbB51af82fb82CFb9D818c6d9',
-          topUpAmount: '0.1',
+          walletType: 'API3',
+          address: '0x9fEe9F24ab79adacbB51af82fb82CFb9D818c6d9',
+          lowThreshold: { value: '0.2', unit: 'satoshi', criticalPercentage: '50' },
         },
       ],
     };
@@ -222,10 +186,108 @@ describe('wallets.json', () => {
       `Invalid wallets.json file: ${new z.ZodError([
         {
           code: 'invalid_type',
-          expected: 'string',
-          received: 'undefined',
-          path: ['1', 0, 'lowBalance'],
-          message: 'Required',
+          expected: 'number',
+          received: 'string',
+          path: ['1', 0, 'lowThreshold', 'value'],
+          message: 'Expected number, received string',
+        },
+        {
+          code: 'invalid_union',
+          unionErrors: [
+            {
+              issues: [
+                {
+                  received: 'satoshi',
+                  code: 'invalid_literal',
+                  expected: 'wei',
+                  path: ['1', 0, 'lowThreshold', 'unit'],
+                  message: 'Invalid literal value, expected "wei"',
+                },
+              ],
+              name: 'ZodError',
+            },
+            {
+              issues: [
+                {
+                  received: 'satoshi',
+                  code: 'invalid_literal',
+                  expected: 'kwei',
+                  path: ['1', 0, 'lowThreshold', 'unit'],
+                  message: 'Invalid literal value, expected "kwei"',
+                },
+              ],
+              name: 'ZodError',
+            },
+            {
+              issues: [
+                {
+                  received: 'satoshi',
+                  code: 'invalid_literal',
+                  expected: 'mwei',
+                  path: ['1', 0, 'lowThreshold', 'unit'],
+                  message: 'Invalid literal value, expected "mwei"',
+                },
+              ],
+              name: 'ZodError',
+            },
+            {
+              issues: [
+                {
+                  received: 'satoshi',
+                  code: 'invalid_literal',
+                  expected: 'gwei',
+                  path: ['1', 0, 'lowThreshold', 'unit'],
+                  message: 'Invalid literal value, expected "gwei"',
+                },
+              ],
+              name: 'ZodError',
+            },
+            {
+              issues: [
+                {
+                  received: 'satoshi',
+                  code: 'invalid_literal',
+                  expected: 'szabo',
+                  path: ['1', 0, 'lowThreshold', 'unit'],
+                  message: 'Invalid literal value, expected "szabo"',
+                },
+              ],
+              name: 'ZodError',
+            },
+            {
+              issues: [
+                {
+                  received: 'satoshi',
+                  code: 'invalid_literal',
+                  expected: 'finney',
+                  path: ['1', 0, 'lowThreshold', 'unit'],
+                  message: 'Invalid literal value, expected "finney"',
+                },
+              ],
+              name: 'ZodError',
+            },
+            {
+              issues: [
+                {
+                  received: 'satoshi',
+                  code: 'invalid_literal',
+                  expected: 'ether',
+                  path: ['1', 0, 'lowThreshold', 'unit'],
+                  message: 'Invalid literal value, expected "ether"',
+                },
+              ],
+              name: 'ZodError',
+            } as any,
+          ],
+          path: ['1', 0, 'lowThreshold', 'unit'],
+          message: 'Invalid input',
+        },
+        {
+          code: 'invalid_type',
+          expected: 'number',
+          received: 'string',
+          path: ['1', 0, 'lowThreshold', 'criticalPercentage'],
+          message: 'Expected number, received string',
         },
       ])}`
     );

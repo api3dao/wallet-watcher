@@ -27,16 +27,12 @@ export const walletWatcherHandler: ScheduledHandler = async (
   const wallets = loadWallets(path.join(__dirname, '../config/wallets.json'));
   await cacheOpenAlerts(config.opsGenieConfig);
 
-  const goResult = await go(() => runWalletWatcher(config, wallets), {
-    totalTimeoutMs: 120_000,
-    retries: 3,
-    delay: { type: 'static', delayMs: 5_000 },
-  });
+  const goResult = await go(() => runWalletWatcher(config, wallets));
 
   if (!goResult.success) {
     await sendToOpsGenieLowLevel(
       {
-        message: `Wallet Watcher encountered an error after multiple tries: ${goResult.error}`,
+        message: `Wallet Watcher encountered an unexpected error: ${goResult.error}`,
         alias: 'serverless-wallet-watcher',
         description: goResult.error.stack,
       },

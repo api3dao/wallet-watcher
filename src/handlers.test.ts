@@ -1,13 +1,10 @@
-import * as nodeUtils from '@api3/airnode-utilities';
 import * as operationsUtils from '@api3/operations-utilities';
-import * as ethersExperimental from '@ethersproject/experimental';
-import { ethers } from 'ethers';
 import * as configFunctions from './config';
 import * as walletHandlers from './handlers';
 import * as walletWatcher from './wallet-watcher';
 import * as fixtures from '../test/fixtures';
 
-jest.setTimeout(60_000);
+jest.setTimeout(20_000);
 
 process.env.OPSGENIE_API_KEY = 'test';
 const oldEnv = process.env;
@@ -15,13 +12,6 @@ const oldEnv = process.env;
 describe('walletWatcherHandler', () => {
   const config = fixtures.buildConfig();
   const wallets = fixtures.buildWallets();
-  const sponsorBalance = ethers.utils.parseEther('10');
-  const balance = ethers.utils.parseEther('0');
-  const gasTarget = {
-    type: 0,
-    gasPrice: ethers.utils.parseUnits('10', 'gwei'),
-  };
-  const transactionResponseMock = { hash: '0xabc', wait: async () => jest.fn() } as any;
 
   let sendToOpsGenieLowLevelSpy: jest.SpyInstance;
   let closeOpsGenieAlertWithAliasSpy: jest.SpyInstance;
@@ -66,17 +56,12 @@ describe('walletWatcherHandler', () => {
   });
 
   it('closes ops genie alert for successful run', async () => {
-    process.env.WALLET_ENABLE_SEND_FUNDS = 'true';
     jest.spyOn(configFunctions, 'loadConfig').mockImplementationOnce(() => config);
     jest.spyOn(configFunctions, 'loadWallets').mockImplementationOnce(() => wallets);
 
-    const nonceManagerSendTransactionSpy = jest.spyOn(ethersExperimental.NonceManager.prototype, 'sendTransaction');
-    jest.spyOn(ethersExperimental.NonceManager.prototype, 'getBalance').mockImplementation(async () => sponsorBalance);
-    jest.spyOn(ethers.providers.StaticJsonRpcProvider.prototype, 'getBalance').mockImplementation(async () => balance);
-    jest
-      .spyOn(nodeUtils, 'getGasPrice')
-      .mockImplementation(async () => [[{ message: 'Returned gas price', level: 'INFO' }], gasTarget] as any);
-    nonceManagerSendTransactionSpy.mockImplementation(async () => transactionResponseMock);
+    jest.spyOn(walletWatcher, 'runWalletWatcher').mockImplementation(async () => {
+      return;
+    });
 
     (await walletHandlers.walletWatcherHandler({} as any, {} as any, {} as any)) as any;
 
@@ -85,7 +70,6 @@ describe('walletWatcherHandler', () => {
   });
 
   it('sends ops genie alert for if the run throws an error', async () => {
-    process.env.WALLET_ENABLE_SEND_FUNDS = 'true';
     jest.spyOn(configFunctions, 'loadConfig').mockImplementationOnce(() => config);
     jest.spyOn(configFunctions, 'loadWallets').mockImplementationOnce(() => wallets);
 
@@ -97,7 +81,7 @@ describe('walletWatcherHandler', () => {
 
     expect(sendToOpsGenieLowLevelSpy).toHaveBeenCalledWith(
       {
-        message: `Wallet Watcher encountered an error after multiple tries: ${error}`,
+        message: `Wallet Watcher encountered an unexpected error: ${error}`,
         alias: 'serverless-wallet-watcher',
         description: (error as Error).stack,
       },

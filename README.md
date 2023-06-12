@@ -1,10 +1,7 @@
 # Wallet Watcher
 
-The wallet watcher loads and ingests the contents of the [operations repository](https://github.com/api3dao/operations)
-and based on the deployed beacons found in it monitors and tops up associated operational wallets.
-
-If a wallet's balance is below the `lowBalance` configuration field in `config/config.json` the function will top up the
-wallet with the amount specified in the `topUpAmount` field in the same file.
+The wallet watcher loads addresses defined in wallets.json and checks that their balances are not below a defined
+threshold. If they are not then an alert will be sent to OpsGenie.
 
 ## Deployment
 
@@ -24,16 +21,6 @@ yarn sls:deploy
 
 Be sure to watch the logs to make sure the applications are behaving as you expect.
 
-## Important
-
-As a safety feature the wallets handler does not top up wallets unless an env flag is set. This flag is called
-`WALLET_ENABLE_SEND_FUNDS`. It can be set to `true` to enable this functionality.
-
-The flag must be manually set by navigating through the AWS console (`lambda` > `functions` > `<walletHandler>` >
-`configuration` > `Environment variables`). While it is possible to configure the flag in `serverless.yml`, the purpose
-of the flag is to require that you explicitly enable this functionality and hopefully consider the consequences of doing
-so. This is to prevent scenarios where dev code sends real funds to unrecoverable addresses.
-
 ## Configuration
 
 ### `config.json`
@@ -41,11 +28,6 @@ so. This is to prevent scenarios where dev code sends real funds to unrecoverabl
 #### `chains`
 
 - `chains.<chainId>.rpc`: The RPC provider URL.
-- `chains.<chainId>.funderDepositoryLowBalanceWarn`: The FunderDepository contract balance below which an alert will be
-  triggered. The value should be in full token units (i.e. in ethers or matics).
-- `chains.<chainId>.topUpWalletLowBalanceWarn`: The top up wallet balance below which an alert will be triggered. The
-  value should be in full token units (i.e. in ethers or matics).
-- `chains.<chainId>.options`: The chain specific options used to get the gas price for top up transactions.
 
 - `opsGenieConfig.apiKey`: The Ops Genie api key.
 - `opsGenieConfig.responders[n].team` (optional): The Ops Genie responder type. If left undefined this will be inferred
@@ -72,7 +54,8 @@ so. This is to prevent scenarios where dev code sends real funds to unrecoverabl
 - `<chainId>[n].apiName` (optional): The name of the API provider.
 - `<chainId>[n].providerXpub`: The extended public key of the sponsor address.
 - `<chainId>[n].sponsor`: The sponsor address to derive the destination wallet.
-- `<chainId>[n].topUpAmount`: The amount to top up in the native token. The value should be in full token units (i.e. in
-  ethers or matics).
-- `<chainId>[n].lowBalance`: The wallet balance value below which a top up is triggered. The value should be in full
-  token units (i.e. in ethers or matics).
+- `<chainId>[n].lowBalance.value`: The wallet balance value below which an alert is triggered.
+- `<chainId>[n].lowBalance.unit`: The token units used to parse the `lowBalance.value` for balance check (i.e. ether,
+  wei, etc).
+- `<chainId>[n].lowBalance.criticalPercentage`: The percentage below the `lowBalance.value` used to trigger a critical
+  alert.

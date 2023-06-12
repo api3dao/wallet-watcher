@@ -1,62 +1,10 @@
 {
   "chains": {
     "1": {
-      "rpc": "https://eth-mainnet.alchemyapi.io/v2/something",
-      "funderAddress": "0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B",
-      "funderDepositoryOwner": "0x81bc85f329cDB28936FbB239f734AE495121F9A6",
-      "topUpWalletLowBalanceWarn": "0.05",
-      "options": {
-        "fulfillmentGasLimit": 500000,
-        "gasPriceOracle": [
-          {
-            "gasPriceStrategy": "latestBlockPercentileGasPrice",
-            "percentile": 60,
-            "minTransactionCount": 20,
-            "pastToCompareInBlocks": 20,
-            "maxDeviationMultiplier": 2
-          },
-          {
-            "gasPriceStrategy": "providerRecommendedGasPrice",
-            "recommendedGasPriceMultiplier": 1.2
-          },
-          {
-            "gasPriceStrategy": "constantGasPrice",
-            "gasPrice": {
-              "value": 10,
-              "unit": "gwei"
-            }
-          }
-        ]
-      }
+      "rpc": "https://eth-mainnet.alchemyapi.io/v2/something"
     },
-    "3": {
-      "rpc": "https://eth-ropsten.alchemyapi.io/v2/something",
-      "funderAddress": "0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B",
-      "funderDepositoryOwner": "0x81bc85f329cDB28936FbB239f734AE495121F9A6",
-      "topUpWalletLowBalanceWarn": "0.01",
-      "options": {
-        "fulfillmentGasLimit": 500000,
-        "gasPriceOracle": [
-          {
-            "gasPriceStrategy": "latestBlockPercentileGasPrice",
-            "percentile": 60,
-            "minTransactionCount": 20,
-            "pastToCompareInBlocks": 20,
-            "maxDeviationMultiplier": 2
-          },
-          {
-            "gasPriceStrategy": "providerRecommendedGasPrice",
-            "recommendedGasPriceMultiplier": 1.2
-          },
-          {
-            "gasPriceStrategy": "constantGasPrice",
-            "gasPrice": {
-              "value": 10,
-              "unit": "gwei"
-            }
-          }
-        ]
-      }
+    "5": {
+      "rpc": "https://rpc.ankr.com/eth_goerli"
     }
   },
   "opsGenieConfig": {
@@ -70,8 +18,7 @@
     ]
   },
   "explorerUrls": {
-    "3": "https://ropsten.etherscan.io/",
-    "4": "https://rinkeby.etherscan.io/",
+    "1": "https://etherscan.io",
     "5": "https://goerli.etherscan.io/",
     "80001": "https://mumbai.polygonscan.com/"
   }

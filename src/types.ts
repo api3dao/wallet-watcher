@@ -1,5 +1,4 @@
 import { config } from '@api3/airnode-validator';
-import { NonceManager } from '@ethersproject/experimental';
 import { ethers } from 'ethers';
 import { z } from 'zod';
 
@@ -8,10 +7,6 @@ export const evmAddressSchema = z.string().regex(/^0x[a-fA-F0-9]{40}$/);
 export const chainConfigSchema = z
   .object({
     rpc: z.string(),
-    funderAddress: evmAddressSchema,
-    funderDepositoryOwner: evmAddressSchema,
-    topUpWalletLowBalanceWarn: z.string(),
-    options: config.chainOptionsSchema,
   })
   .strict();
 
@@ -44,11 +39,23 @@ export const walletTypeSchema = z.union([
   z.literal('Airseeker'),
 ]);
 
+export const namedUnits = z.union([
+  z.literal('wei'),
+  z.literal('kwei'),
+  z.literal('mwei'),
+  z.literal('gwei'),
+  z.literal('szabo'),
+  z.literal('finney'),
+  z.literal('ether'),
+]);
+
 const baseWalletSchema = z.object({
   apiName: z.string().optional(),
-  topUpAmount: z.string(),
-  lowBalance: z.string(),
-  // TODO: field for sending a second alert if balance is % below lowBalance? Github issue #285 item 2
+  lowThreshold: z.object({
+    value: z.number().positive(),
+    unit: namedUnits,
+    criticalPercentage: z.number().positive().lt(100).optional(),
+  }),
 });
 
 const providerWalletSchema = baseWalletSchema.extend({
@@ -98,18 +105,8 @@ export type Wallets = z.infer<typeof walletsSchema>;
 export type WalletType = z.infer<typeof walletTypeSchema>;
 export type EvmAddress = z.infer<typeof config.evmAddressSchema>;
 
-export type WalletStatus = Wallet & {
-  chainId: string;
-  address: EvmAddress;
-  balance: ethers.BigNumber;
-};
-
 export type ChainState = ChainConfig & {
-  chainId: string;
   chainName: string;
   provider: ethers.providers.StaticJsonRpcProvider;
-  topUpWallet: NonceManager;
-  funderContract: ethers.Contract;
 };
-
 export type ChainStates = Record<string, ChainState>;
