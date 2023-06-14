@@ -29,7 +29,7 @@ export const buildWallets = (): Wallets => ({
       address: '0xC26f10e1b37A1E7A7De266FeF0c19533489C3e75',
       providerXpub:
         'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
-      lowThreshold: { value: 0.2, unit: 'ether', criticalPercentage: 50 },
+      lowThreshold: { value: 0.2, unit: 'ether', criticalValue: 0.1 },
     },
   ],
 });

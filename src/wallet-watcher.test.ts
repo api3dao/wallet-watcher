@@ -144,9 +144,8 @@ describe('walletWatcher', () => {
       const opsGenieAliasSuffix = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(`${addressToBeFunded}${chainId}`));
 
       expect(limitedCloseOpsGenieAlertWithAlias).toHaveBeenNthCalledWith(1, `get-balance-error-${opsGenieAliasSuffix}`);
-      expect(limitedCloseOpsGenieAlertWithAlias).toHaveBeenNthCalledWith(2, `low-balance-${opsGenieAliasSuffix}`);
       expect(limitedCloseOpsGenieAlertWithAlias).toHaveBeenNthCalledWith(
-        3,
+        2,
         `critical-low-balance-${opsGenieAliasSuffix}`
       );
       expect(limitedSendToOpsGenieLowLevel).toHaveBeenCalledWith(
@@ -169,12 +168,8 @@ describe('walletWatcher', () => {
 
       const opsGenieAliasSuffix = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(`${addressToBeFunded}${chainId}`));
 
-      expect(limitedCloseOpsGenieAlertWithAlias).toHaveBeenNthCalledWith(1, `get-balance-error-${opsGenieAliasSuffix}`);
-      expect(limitedCloseOpsGenieAlertWithAlias).toHaveBeenNthCalledWith(2, `low-balance-${opsGenieAliasSuffix}`);
-      expect(limitedCloseOpsGenieAlertWithAlias).toHaveBeenNthCalledWith(
-        3,
-        `critical-low-balance-${opsGenieAliasSuffix}`
-      );
+      expect(limitedCloseOpsGenieAlertWithAlias).toHaveBeenCalledWith(`get-balance-error-${opsGenieAliasSuffix}`);
+
       expect(limitedSendToOpsGenieLowLevel).toHaveBeenCalledWith(
         {
           priority: 'P1',
@@ -197,10 +192,7 @@ describe('walletWatcher', () => {
 
       expect(limitedCloseOpsGenieAlertWithAlias).toHaveBeenNthCalledWith(1, `get-balance-error-${opsGenieAliasSuffix}`);
       expect(limitedCloseOpsGenieAlertWithAlias).toHaveBeenNthCalledWith(2, `low-balance-${opsGenieAliasSuffix}`);
-      expect(limitedCloseOpsGenieAlertWithAlias).toHaveBeenNthCalledWith(
-        3,
-        `critical-low-balance-${opsGenieAliasSuffix}`
-      );
+
       expect(limitedSendToOpsGenieLowLevel).not.toHaveBeenCalled();
     });
 
@@ -225,9 +217,8 @@ describe('walletWatcher', () => {
       const opsGenieAliasSuffix = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(`${addressToBeFunded}${chainId}`));
 
       expect(limitedCloseOpsGenieAlertWithAlias).toHaveBeenNthCalledWith(1, `get-balance-error-${opsGenieAliasSuffix}`);
-      expect(limitedCloseOpsGenieAlertWithAlias).toHaveBeenNthCalledWith(2, `low-balance-${opsGenieAliasSuffix}`);
       expect(limitedCloseOpsGenieAlertWithAlias).toHaveBeenNthCalledWith(
-        3,
+        2,
         `critical-low-balance-${opsGenieAliasSuffix}`
       );
       expect(limitedSendToOpsGenieLowLevel).toHaveBeenCalledTimes(1);
@@ -255,9 +246,8 @@ describe('walletWatcher', () => {
       expect(getBalanceMock).toHaveBeenCalledTimes(2);
 
       expect(limitedCloseOpsGenieAlertWithAlias).toHaveBeenNthCalledWith(1, `get-balance-error-${opsGenieAliasSuffix}`);
-      expect(limitedCloseOpsGenieAlertWithAlias).toHaveBeenNthCalledWith(2, `low-balance-${opsGenieAliasSuffix}`);
       expect(limitedCloseOpsGenieAlertWithAlias).toHaveBeenNthCalledWith(
-        3,
+        2,
         `critical-low-balance-${opsGenieAliasSuffix}`
       );
       expect(limitedSendToOpsGenieLowLevel).toHaveBeenCalledWith(
@@ -282,12 +272,6 @@ describe('walletWatcher', () => {
 
       expect(getBalanceMock).toHaveBeenCalledTimes(3);
 
-      expect(limitedCloseOpsGenieAlertWithAlias).toHaveBeenNthCalledWith(1, `get-balance-error-${opsGenieAliasSuffix}`);
-      expect(limitedCloseOpsGenieAlertWithAlias).toHaveBeenNthCalledWith(2, `low-balance-${opsGenieAliasSuffix}`);
-      expect(limitedCloseOpsGenieAlertWithAlias).toHaveBeenNthCalledWith(
-        3,
-        `critical-low-balance-${opsGenieAliasSuffix}`
-      );
       expect(limitedSendToOpsGenieLowLevel).toHaveBeenCalledWith(
         {
           priority: 'P2',

@@ -51,11 +51,18 @@ export const namedUnits = z.union([
 
 const baseWalletSchema = z.object({
   apiName: z.string().optional(),
-  lowThreshold: z.object({
-    value: z.number().positive(),
-    unit: namedUnits,
-    criticalPercentage: z.number().positive().lt(100).optional(),
-  }),
+  lowThreshold: z
+    .object({
+      value: z.number().positive(),
+      unit: namedUnits,
+      criticalValue: z.number().positive().optional(),
+    })
+    .refine(
+      ({ value, criticalValue }) => {
+        return criticalValue === undefined || criticalValue < value;
+      },
+      { message: 'Critical value must be lower than value' }
+    ),
 });
 
 const providerWalletSchema = baseWalletSchema.extend({

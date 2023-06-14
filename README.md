@@ -1,7 +1,7 @@
 # Wallet Watcher
 
 The wallet watcher loads addresses defined in wallets.json and checks that their balances are not below a defined
-threshold. If they are not then an alert will be sent to OpsGenie.
+threshold. If they are then an alert will be sent to OpsGenie.
 
 ## Deployment
 
@@ -54,8 +54,8 @@ Be sure to watch the logs to make sure the applications are behaving as you expe
 - `<chainId>[n].apiName` (optional): The name of the API provider.
 - `<chainId>[n].providerXpub`: The extended public key of the sponsor address.
 - `<chainId>[n].sponsor`: The sponsor address to derive the destination wallet.
-- `<chainId>[n].lowBalance.value`: The wallet balance value below which an alert is triggered.
+- `<chainId>[n].lowBalance.value`: The value used to send an alert if wallet balance is below it.
 - `<chainId>[n].lowBalance.unit`: The token units used to parse the `lowBalance.value` for balance check (i.e. ether,
   wei, etc).
-- `<chainId>[n].lowBalance.criticalPercentage`: The percentage below the `lowBalance.value` used to trigger a critical
-  alert.
+- `<chainId>[n].lowBalance.criticalValue`: The value used to send a _critical_ alert if wallet balance is below it. This
+  value must be below the `lowBalance.value` value.

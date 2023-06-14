@@ -174,7 +174,7 @@ describe('wallets.json', () => {
           apiName: 'api3',
           walletType: 'API3',
           address: '0x9fEe9F24ab79adacbB51af82fb82CFb9D818c6d9',
-          lowThreshold: { value: '0.2', unit: 'satoshi', criticalPercentage: '50' },
+          lowThreshold: { value: '0.2', unit: 'satoshi', criticalValue: '0.1' },
         },
       ],
     };
@@ -286,7 +286,7 @@ describe('wallets.json', () => {
           code: 'invalid_type',
           expected: 'number',
           received: 'string',
-          path: ['1', 0, 'lowThreshold', 'criticalPercentage'],
+          path: ['1', 0, 'lowThreshold', 'criticalValue'],
           message: 'Expected number, received string',
         },
       ])}`

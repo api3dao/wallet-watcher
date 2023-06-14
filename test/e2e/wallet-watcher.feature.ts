@@ -40,7 +40,7 @@ describe('walletWatcher', () => {
 
       await walletWatcher.runWalletWatcher(config, wallets);
 
-      expect(limitedCloseOpsGenieAlertWithAliasMock).toHaveBeenCalledTimes(3);
+      expect(limitedCloseOpsGenieAlertWithAliasMock).toHaveBeenCalledTimes(2);
       expect(limitedSendToOpsGenieLowLevelMock).toHaveBeenCalledWith(
         {
           alias: 'low-balance-0xa029e0cf3ff3ea6562c3e67315c9bbec596fb7ac0ac862365eb7ec783b426c0d',

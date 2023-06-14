@@ -10,7 +10,7 @@
       "apiName": "FunderDepository contract",
       "walletType": "API3",
       "address": "0xE889956fA885F42B0C294507d0e67a3168BE188b",
-      "lowThreshold": { "value": 0.3, "unit": "ether", "criticalPercentage": 33 }
+      "lowThreshold": { "value": 0.3, "unit": "ether", "criticalValue": 0.1 }
     }
   ],
   "5": [

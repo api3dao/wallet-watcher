@@ -122,11 +122,6 @@ export const runWalletWatcher = async ({ chains, ...config }: Config, wallets: W
         ethers.utils.toUtf8Bytes(`${wallet.address}${wallet.chainId}`)
       );
 
-      // Close previous cycle alerts
-      limitedCloseOpsGenieAlertWithAlias(`get-balance-error-${opsGenieAliasSuffix}`);
-      limitedCloseOpsGenieAlertWithAlias(`low-balance-${opsGenieAliasSuffix}`);
-      limitedCloseOpsGenieAlertWithAlias(`critical-low-balance-${opsGenieAliasSuffix}`);
-
       const chainState = chainStates[wallet.chainId];
       const getBalanceResult = await go(() => chainState.provider.getBalance(wallet.address), {
         totalTimeoutMs: 15_000,
@@ -147,20 +142,20 @@ export const runWalletWatcher = async ({ chains, ...config }: Config, wallets: W
           config.opsGenieConfig
         );
         throw new Error(message);
+      } else {
+        limitedCloseOpsGenieAlertWithAlias(`get-balance-error-${opsGenieAliasSuffix}`);
       }
 
       const balance = getBalanceResult.data;
 
       // Send alert if balance is equal or below threshold
-      const walletBalanceThreshold = ethers.utils.parseUnits(
-        wallet.lowThreshold.value.toString(),
-        wallet.lowThreshold.unit
-      );
-      if (balance.lte(walletBalanceThreshold)) {
-        if (wallet.lowThreshold.criticalPercentage) {
+      const balanceThreshold = ethers.utils.parseUnits(wallet.lowThreshold.value.toString(), wallet.lowThreshold.unit);
+      if (balance.lte(balanceThreshold)) {
+        if (wallet.lowThreshold.criticalValue) {
           // Send emergency alert if balance is even below a critical percentage
-          const criticalBalanceThreshold = walletBalanceThreshold.sub(
-            walletBalanceThreshold.mul(wallet.lowThreshold.criticalPercentage).div(100)
+          const criticalBalanceThreshold = ethers.utils.parseUnits(
+            wallet.lowThreshold.criticalValue.toString(),
+            wallet.lowThreshold.unit
           );
           if (balance.lte(criticalBalanceThreshold)) {
             const criticalMessage = `Critical low balance alert for address ${wallet.address} on chain ${chainState.chainName}`;
@@ -169,11 +164,13 @@ export const runWalletWatcher = async ({ chains, ...config }: Config, wallets: W
                 priority: 'P1',
                 alias: `critical-low-balance-${opsGenieAliasSuffix}`,
                 message: criticalMessage,
-                description: `Current balance: ${balance.toString()}\nThreshold: ${walletBalanceThreshold.toString()}\nCritical threshold: ${criticalBalanceThreshold.toString()}`,
+                description: `Current balance: ${balance.toString()}\nThreshold: ${balanceThreshold.toString()}\nCritical threshold: ${criticalBalanceThreshold.toString()}`,
               },
               config.opsGenieConfig
             );
             return;
+          } else {
+            limitedCloseOpsGenieAlertWithAlias(`critical-low-balance-${opsGenieAliasSuffix}`);
           }
         }
 
@@ -183,10 +180,12 @@ export const runWalletWatcher = async ({ chains, ...config }: Config, wallets: W
             priority: 'P2',
             alias: `low-balance-${opsGenieAliasSuffix}`,
             message,
-            description: `Current balance: ${balance.toString()}\nThreshold: ${walletBalanceThreshold.toString()}`,
+            description: `Current balance: ${balance.toString()}\nThreshold: ${balanceThreshold.toString()}`,
           },
           config.opsGenieConfig
         );
+      } else {
+        limitedCloseOpsGenieAlertWithAlias(`low-balance-${opsGenieAliasSuffix}`);
       }
     })
   );
