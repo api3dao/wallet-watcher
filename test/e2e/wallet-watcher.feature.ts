@@ -41,15 +41,12 @@ describe('walletWatcher', () => {
       await walletWatcher.runWalletWatcher(config, wallets);
 
       expect(limitedCloseOpsGenieAlertWithAliasMock).toHaveBeenCalledTimes(2);
-      expect(limitedSendToOpsGenieLowLevelMock).toHaveBeenCalledWith(
-        {
-          alias: 'low-balance-0xa029e0cf3ff3ea6562c3e67315c9bbec596fb7ac0ac862365eb7ec783b426c0d',
-          description: 'Current balance: 150000000000000000\nThreshold: 200000000000000000',
-          message: 'Low balance alert for address 0xC26f10e1b37A1E7A7De266FeF0c19533489C3e75 on chain 31337',
-          priority: 'P2',
-        },
-        { apiKey: 'opsgenie-api-key', responders: [{ id: 'a uuid value', name: 'name', type: 'team' }] }
-      );
+      expect(limitedSendToOpsGenieLowLevelMock).toHaveBeenCalledWith({
+        alias: 'low-balance-0xa029e0cf3ff3ea6562c3e67315c9bbec596fb7ac0ac862365eb7ec783b426c0d',
+        description: 'Current balance: 150000000000000000\nThreshold: 200000000000000000',
+        message: 'Low balance alert for address 0xC26f10e1b37A1E7A7De266FeF0c19533489C3e75 on chain 31337',
+        priority: 'P2',
+      });
     });
   });
 });
