@@ -9,7 +9,9 @@
   "files": [
     "dist"
   ],
-  "engine": "^14.17.1",
+  "engines": {
+    "node": "^18.16.0"
+  },
   "scripts": {
     "build": "yarn run clean && yarn run compile",
     "clean": "rimraf -rf ./dist *.tgz",
