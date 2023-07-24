@@ -14,7 +14,7 @@ provider:
   name: aws
   region: us-east-1
   stage: production
-  runtime: nodejs16.x
+  runtime: nodejs18.x
   architecture: arm64
   lambdaHashingVersion: 20201221
   logRetentionInDays: 7
