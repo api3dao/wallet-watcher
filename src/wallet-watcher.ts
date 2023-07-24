@@ -1,25 +1,22 @@
-import { ethers } from 'ethers';
-import { uniqBy } from 'lodash';
-import { NonceManager } from '@ethersproject/experimental';
-import { parseEther } from 'ethers/lib/utils';
-import { getGasPrice } from '@api3/airnode-utilities';
 import { evm as nodeEvm } from '@api3/airnode-node';
-import { PROTOCOL_IDS, networks } from '@api3/airnode-protocol';
-import { opsGenie, promises, logging } from '@api3/operations-utilities';
+import { PROTOCOL_IDS } from '@api3/airnode-protocol';
+import { CHAINS } from '@api3/chains';
+import { getOpsGenieLimiter, log } from '@api3/operations-utilities';
+import { go } from '@api3/promise-utils';
+import { ethers } from 'ethers';
+import { isNil, uniqBy } from 'lodash';
 import { API3_XPUB } from './constants';
-import { Wallet, WalletStatus, Config, Wallets, GlobalSponsor } from './types';
+import { ChainStates, ChainsConfig, Config, Wallet, Wallets } from './types';
+
+const { limitedSendToOpsGenieLowLevel, limitedCloseOpsGenieAlertWithAlias } = getOpsGenieLimiter();
 
 /**
- * Notes
+ * Gets the chain name from @api3/chains for the provided chain id
  *
- * A WALLET_ENABLE_SEND_FUNDS env must be set to any value in production to enable actual wallet top-ups.
+ * @param chainId the chain id
+ * @returns the chain name
  */
-
-/**
- *
- * Returns networks including names and chainIds
- */
-export const getNetworks = () => networks;
+export const getChainName = (chainId: string) => CHAINS.find(({ id }) => id === chainId)?.name;
 
 /**
  * Returns a provider instance based on wallet config and a chain name
@@ -34,6 +31,28 @@ export const getProvider = (url: string, chainName: string, chainId: string) =>
   });
 
 /**
+ * Extends each chain object read from config.json with the chain name and an ethers.provider object
+ *
+ * @param chains array of chain objects read from config.json
+ * @returns the original chain object plus the chain name and an ethers.js provider object to interact with the blockchain
+ */
+export const initializeChainStates = (chains: ChainsConfig) => {
+  return Object.entries(chains).reduce((acc: ChainStates, [chainId, chain]) => {
+    const chainName = getChainName(chainId) ?? chainId;
+    const provider = getProvider(chain.rpc, chainName, chainId);
+
+    return {
+      ...acc,
+      [chainId]: {
+        ...chain,
+        chainName,
+        provider,
+      },
+    };
+  }, {});
+};
+
+/**
  * Derives a sponsor wallet address
  *
  * @param sponsor
@@ -45,11 +64,17 @@ export const deriveSponsorWalletAddress = (sponsor: string, xpub: string, protoc
   return airnodeHdNode.derivePath(nodeEvm.deriveWalletPathFromSponsorAddress(sponsor, protocolId)).address;
 };
 
+/**
+ * Sets or overrides the wallet.address field based on the walletType
+ *
+ * @param wallet parsed wallet object from wallets.json
+ * @returns the original wallet object but it sets/overrides the address field with the derived sponsor wallet if walletType is not API nor Provider
+ */
 export const determineWalletAddress = (wallet: Wallet) => {
   switch (wallet.walletType) {
     case 'API3':
     case 'Provider':
-      return { ...wallet, address: wallet.address! };
+      return wallet;
     // Replace destination addresses for derived PSP and Airseeker wallets
     case 'API3-Sponsor':
       return { ...wallet, address: deriveSponsorWalletAddress(wallet.sponsor, API3_XPUB, PROTOCOL_IDS.PSP) };
@@ -64,219 +89,111 @@ export const determineWalletAddress = (wallet: Wallet) => {
 };
 
 /**
- * Calculates and deduplicates all sponsor wallets from wallets.json and populates the resulting wallets with the balances.
- *
- * @param config parsed config.json
- * @param wallets parsed wallets.json
- */
-export const getWalletsAndBalances = async (config: Config, wallets: Wallets) => {
-  const networkMap = getNetworks();
-  const walletsWithDerivedAddresses = Object.entries(wallets).flatMap(([chainId, wallets]) =>
-    wallets.flatMap((wallet) => ({
-      ...determineWalletAddress(wallet),
-      chainId,
-      chainName: networkMap[chainId].name,
-    }))
-  );
-
-  // There must be a chain in the config for this
-  const walletsToAssess = uniqBy(walletsWithDerivedAddresses, (item) => `${item.address}${item.chainName}`).filter(
-    (wallet) => Object.keys(config.chains).find((chainId) => chainId === wallet.chainId)
-  );
-
-  const walletPromises = walletsToAssess.map(async (wallet) => {
-    const provider = getProvider(config.chains[wallet.chainId].rpc, wallet.chainName, wallet.chainId);
-    if (!provider) throw new Error(`Unable to initialize provider for chain (${wallet.chainName})`);
-
-    const balance = await provider.getBalance(wallet.address);
-    if (!balance)
-      throw new Error(`Unable to get balance for chain (${wallet.chainName}) and address (${wallet.address})`);
-    return {
-      ...wallet,
-      balance,
-      provider,
-    };
-  });
-
-  const walletBalances = await Promise.allSettled(walletPromises);
-
-  return walletBalances.reduce((acc: WalletStatus[], settledPromise: PromiseSettledResult<WalletStatus>) => {
-    if (settledPromise.status === 'rejected') {
-      logging.log(`Failed to get wallet balance.`, 'ERROR', `Error: ${settledPromise.reason.message}.`);
-      return acc;
-    }
-
-    return [...acc, settledPromise.value];
-  }, []);
-};
-
-/**
- * Takes a list of wallets with their embedded balances, compares the balance to configured minimums and executes top
- * up transactions if low balance criteria are met.
- *
- * @param wallet a wallet object containing a wallet address and balance
- * @param config parsed config.json
- * @param globalSponsors a set of wallets used as the source of funds for top-ups. Different wallets represent funds on different chains.
- */
-export const checkAndFundWallet = async (wallet: WalletStatus, config: Config, globalSponsors: GlobalSponsor[]) => {
-  try {
-    const globalSponsor = globalSponsors.find((sponsor) => sponsor.chainId === wallet.chainId);
-
-    // Close previous cycle alerts
-    await opsGenie.closeOpsGenieAlertWithAlias(
-      `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
-      config.opsGenieConfig
-    );
-
-    if (!globalSponsor) {
-      await opsGenie.sendToOpsGenieLowLevel(
-        {
-          message: `Can't find a valid global sponsor for ${wallet.address} on ${wallet.chainName}`,
-          alias: `no-sponsor-${wallet.address}-${wallet.chainName}`,
-          priority: 'P1',
-        },
-        config.opsGenieConfig
-      );
-      return;
-    }
-
-    await opsGenie.closeOpsGenieAlertWithAlias(
-      `no-sponsor-${wallet.address}-${wallet.chainName}`,
-      config.opsGenieConfig
-    );
-
-    const walletBalanceThreshold = parseEther(globalSponsor.lowBalance);
-    if (wallet.balance.gt(walletBalanceThreshold)) {
-      return;
-    }
-
-    const globalSponsorBalanceThreshold = parseEther(globalSponsor.globalSponsorLowBalanceWarn);
-    if ((await globalSponsor.sponsor.getBalance()).lt(globalSponsorBalanceThreshold)) {
-      await opsGenie.sendToOpsGenieLowLevel(
-        {
-          message: `Low balance on primary top-up sponsor for chain ${wallet.chainName}`,
-          alias: `low-master-sponsor-balance-${wallet.chainName}`,
-          priority: 'P3',
-        },
-        config.opsGenieConfig
-      );
-    } else {
-      await opsGenie.closeOpsGenieAlertWithAlias(
-        `low-master-sponsor-balance-${wallet.chainName}`,
-        config.opsGenieConfig
-      );
-    }
-
-    const [logs, gasTarget] = await getGasPrice(wallet.provider, config.chains[wallet.chainId].options);
-    logs.forEach((log) =>
-      logging.log(log.message, log.level === 'INFO' || log.level === 'ERROR' ? log.level : undefined)
-    );
-
-    const { gasLimit: _gasLimit, ...restGasTarget } = gasTarget;
-
-    if (!process.env.WALLET_ENABLE_SEND_FUNDS) {
-      await opsGenie.sendToOpsGenieLowLevel(
-        {
-          message: `(would have) Just topped up ${wallet.address} on ${wallet.chainName}`,
-          alias: `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
-          description: [
-            `DID NOT ACTUALLY SEND FUNDS! WALLET_ENABLE_SEND_FUNDS is not set`,
-            `Type of wallet: ${wallet.walletType}`,
-            `Address: ${config.explorerUrls[wallet.chainId]}address/${wallet.address} )`,
-            `Transaction: ${config.explorerUrls[wallet.chainId]}tx/not-applicable`,
-          ].join('\n'),
-          priority: 'P5',
-        },
-        config.opsGenieConfig
-      );
-
-      await opsGenie.closeOpsGenieAlertWithAlias(
-        `error-while-topping-up-wallet-${wallet.address}-${wallet.chainName}`,
-        config.opsGenieConfig
-      );
-
-      return;
-    }
-
-    const receipt = await globalSponsor.sponsor.sendTransaction({
-      to: wallet.address,
-      value: parseEther(globalSponsor.topUpAmount),
-      ...restGasTarget,
-    });
-    await receipt.wait(1);
-
-    await opsGenie.sendToOpsGenieLowLevel(
-      {
-        message: `Just topped up ${wallet.address} on ${wallet.chainName}`,
-        alias: `freshly-topped-up-${wallet.address}-${wallet.chainName}`,
-        description: [
-          `Type of wallet: ${wallet.walletType}`,
-          `Address: ${config.explorerUrls[wallet.chainId]}address/${wallet.address} )`,
-          `Transaction: ${config.explorerUrls[wallet.chainId]}tx/${
-            receipt?.hash ?? 'WALLET_ENABLE_SEND_FUNDS disabled'
-          }`,
-        ].join('\n'),
-        priority: 'P5',
-      },
-      config.opsGenieConfig
-    );
-
-    await opsGenie.closeOpsGenieAlertWithAlias(
-      `error-while-topping-up-wallet-${wallet.address}-${wallet.chainName}`,
-      config.opsGenieConfig
-    );
-  } catch (e) {
-    await opsGenie.sendToOpsGenieLowLevel(
-      {
-        message: 'An error occurred while trying to up up a wallet',
-        alias: `error-while-topping-up-wallet-${wallet.address}-${wallet.chainName}`,
-        priority: 'P1',
-        description: `Error: ${e}\nStack Trace: ${(e as Error)?.stack}`,
-      },
-      config.opsGenieConfig
-    );
-
-    return;
-  }
-};
-
-/**
- * Returns an array of global sponsor wallets connected to their respective RPC providers
- *
- * @param config parsed config
- */
-export const getGlobalSponsors = (config: Config) =>
-  Object.entries(config.chains).reduce((acc: GlobalSponsor[], [chainId, chain]) => {
-    const sponsor = new NonceManager(
-      ethers.Wallet.fromMnemonic(config.topUpMnemonic).connect(
-        new ethers.providers.StaticJsonRpcProvider(chain.rpc, {
-          chainId: parseInt(chainId),
-          name: chainId,
-        })
-      )
-    );
-
-    return [
-      ...acc,
-      {
-        chainId,
-        ...chain,
-        sponsor,
-      },
-    ];
-  }, []);
-
-/**
  * Runs wallet watcher
  *
  * @param config parsed config.json
  * @param wallets parsed wallets.json
  */
-export const runWalletWatcher = async (config: Config, wallets: Wallets) => {
-  const globalSponsors = getGlobalSponsors(config);
-  const walletsAndBalances = await getWalletsAndBalances(config, wallets);
+export const runWalletWatcher = async ({ chains, ...config }: Config, wallets: Wallets) => {
+  // Initialize each chain by adding its name and an ethers.js provider object
+  const chainStates = initializeChainStates(chains);
 
-  await promises.settleAndCheckForPromiseRejections(
-    walletsAndBalances.map((wallet) => checkAndFundWallet(wallet, config, globalSponsors))
+  // Sets or overrides address field with derived sponsor wallet address if walletType is not API nor Provider
+  const walletsWithDerivedAddresses = Object.entries(wallets).flatMap(([chainId, wallets]) => {
+    return wallets.flatMap((wallet) => ({
+      ...determineWalletAddress(wallet),
+      chainId,
+    }));
+  });
+
+  // Unique wallets with highest lowThreshold by address and chainId
+  const uniqueWalletsPerChain = uniqBy(
+    [...walletsWithDerivedAddresses].sort((a, b) => b.lowThreshold.value - a.lowThreshold.value),
+    (item) => `${item.address}${item.chainId}`
   );
+
+  // Filter out wallets that do not have a matching chain object defined in config.json
+  const walletsToAssess = uniqueWalletsPerChain.filter((wallet) => !isNil(chainStates[wallet.chainId]));
+
+  // Check balances for each wallet
+  const walletBalances = await Promise.allSettled(
+    walletsToAssess.map(async (wallet) => {
+      const opsGenieAliasSuffix = ethers.utils.keccak256(
+        ethers.utils.toUtf8Bytes(`${wallet.address}${wallet.chainId}`)
+      );
+
+      const chainState = chainStates[wallet.chainId];
+      const getBalanceResult = await go(() => chainState.provider.getBalance(wallet.address), {
+        totalTimeoutMs: 15_000,
+        retries: 2,
+        delay: { type: 'static', delayMs: 4_900 },
+        onAttemptError: ({ error }) => log(error.message),
+      });
+
+      if (!getBalanceResult.success) {
+        const message = `Unable to get balance for address ${wallet.address} on chain ${chainState.chainName}`;
+        await limitedSendToOpsGenieLowLevel(
+          {
+            priority: 'P2',
+            alias: `get-balance-error-${opsGenieAliasSuffix}`,
+            message,
+            description: `${getBalanceResult.error.message}\n${getBalanceResult.error.stack}`,
+          },
+          config.opsGenieConfig
+        );
+        throw new Error(message);
+      } else {
+        limitedCloseOpsGenieAlertWithAlias(`get-balance-error-${opsGenieAliasSuffix}`);
+      }
+
+      const balance = getBalanceResult.data;
+
+      // Send alert if balance is equal or below threshold
+      const balanceThreshold = ethers.utils.parseUnits(wallet.lowThreshold.value.toString(), wallet.lowThreshold.unit);
+      if (balance.lte(balanceThreshold)) {
+        if (wallet.lowThreshold.criticalValue) {
+          // Send emergency alert if balance is even below a critical percentage
+          const criticalBalanceThreshold = ethers.utils.parseUnits(
+            wallet.lowThreshold.criticalValue.toString(),
+            wallet.lowThreshold.unit
+          );
+          if (balance.lte(criticalBalanceThreshold)) {
+            const criticalMessage = `Critical low balance alert for address ${wallet.address} on chain ${chainState.chainName}`;
+            await limitedSendToOpsGenieLowLevel(
+              {
+                priority: 'P1',
+                alias: `critical-low-balance-${opsGenieAliasSuffix}`,
+                message: criticalMessage,
+                description: `Current balance: ${balance.toString()}\nThreshold: ${balanceThreshold.toString()}\nCritical threshold: ${criticalBalanceThreshold.toString()}`,
+              },
+              config.opsGenieConfig
+            );
+            return;
+          } else {
+            limitedCloseOpsGenieAlertWithAlias(`critical-low-balance-${opsGenieAliasSuffix}`);
+          }
+        }
+
+        const message = `Low balance alert for address ${wallet.address} on chain ${chainState.chainName}`;
+        await limitedSendToOpsGenieLowLevel(
+          {
+            priority: 'P2',
+            alias: `low-balance-${opsGenieAliasSuffix}`,
+            message,
+            description: `Current balance: ${balance.toString()}\nThreshold: ${balanceThreshold.toString()}`,
+          },
+          config.opsGenieConfig
+        );
+      } else {
+        limitedCloseOpsGenieAlertWithAlias(`low-balance-${opsGenieAliasSuffix}`);
+      }
+    })
+  );
+
+  // Log any errors and return wallets with a balance
+  walletBalances.forEach(async (settledPromise) => {
+    if (settledPromise.status === 'rejected') {
+      log('Failed to check wallet balance', 'ERROR', `Error: ${settledPromise.reason.message}`);
+    }
+  });
 };

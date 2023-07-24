@@ -1,15 +1,12 @@
-import { z } from 'zod';
-import { BigNumber, providers } from 'ethers';
-import { NonceManager } from '@ethersproject/experimental';
 import { config } from '@api3/airnode-validator';
+import { ethers } from 'ethers';
+import { z } from 'zod';
+
+export const evmAddressSchema = z.string().regex(/^0x[a-fA-F0-9]{40}$/);
 
 export const chainConfigSchema = z
   .object({
     rpc: z.string(),
-    topUpAmount: z.string(),
-    lowBalance: z.string(),
-    globalSponsorLowBalanceWarn: z.string(),
-    options: config.chainOptionsSchema,
   })
   .strict();
 
@@ -28,7 +25,6 @@ export const opsGenieConfigSchema = z.object({
 
 export const configSchema = z
   .object({
-    topUpMnemonic: z.string(),
     opsGenieConfig: opsGenieConfigSchema,
     chains: chainsConfigSchema,
     explorerUrls: z.record(z.string(), z.string()),
@@ -43,38 +39,59 @@ export const walletTypeSchema = z.union([
   z.literal('Airseeker'),
 ]);
 
-const providerWalletSchema = z.object({
+export const namedUnits = z.union([
+  z.literal('wei'),
+  z.literal('kwei'),
+  z.literal('mwei'),
+  z.literal('gwei'),
+  z.literal('szabo'),
+  z.literal('finney'),
+  z.literal('ether'),
+]);
+
+const baseWalletSchema = z.object({
+  apiName: z.string().optional(),
+  lowThreshold: z
+    .object({
+      value: z.number().positive(),
+      unit: namedUnits,
+      criticalValue: z.number().positive().optional(),
+    })
+    .refine(
+      ({ value, criticalValue }) => {
+        return criticalValue === undefined || criticalValue < value;
+      },
+      { message: 'Critical value must be lower than value' }
+    ),
+});
+
+const providerWalletSchema = baseWalletSchema.extend({
   walletType: z.literal('Provider'),
   address: config.evmAddressSchema,
   providerXpub: z.string(),
-  apiName: z.string().optional(),
 });
 
-const api3WalletSchema = z.object({
+const api3WalletSchema = baseWalletSchema.extend({
   walletType: z.literal('API3'),
   address: config.evmAddressSchema,
-  apiName: z.string().optional(),
 });
 
-const providerSponsorWalletSchema = z.object({
+const providerSponsorWalletSchema = baseWalletSchema.extend({
   walletType: z.literal('Provider-Sponsor'),
   sponsor: config.evmAddressSchema,
   providerXpub: z.string(),
-  apiName: z.string().optional(),
 });
 
-const api3SponsorWalletSchema = z.object({
+const api3SponsorWalletSchema = baseWalletSchema.extend({
   walletType: z.literal('API3-Sponsor'),
   sponsor: config.evmAddressSchema,
   providerXpub: z.string(),
-  apiName: z.string().optional(),
 });
 
-const airseekerSponsorWalletSchema = z.object({
+const airseekerSponsorWalletSchema = baseWalletSchema.extend({
   walletType: z.literal('Airseeker'),
   sponsor: config.evmAddressSchema,
   providerXpub: z.string(),
-  apiName: z.string().optional(),
 });
 
 export const walletSchema = z.discriminatedUnion('walletType', [
@@ -87,19 +104,16 @@ export const walletSchema = z.discriminatedUnion('walletType', [
 
 export const walletsSchema = z.record(z.string(), z.array(walletSchema));
 
-export type WalletStatus = Wallet & {
-  balance: BigNumber;
-  chainName: string;
-  chainId: string;
-  provider: providers.StaticJsonRpcProvider;
-  address: EvmAddress;
-};
-
-export type GlobalSponsor = ChainConfig & { sponsor: NonceManager; chainId: string };
-
 export type ChainConfig = z.infer<typeof chainConfigSchema>;
 export type ChainsConfig = z.infer<typeof chainsConfigSchema>;
 export type Config = z.infer<typeof configSchema>;
 export type Wallet = z.infer<typeof walletSchema>;
 export type Wallets = z.infer<typeof walletsSchema>;
+export type WalletType = z.infer<typeof walletTypeSchema>;
 export type EvmAddress = z.infer<typeof config.evmAddressSchema>;
+
+export type ChainState = ChainConfig & {
+  chainName: string;
+  provider: ethers.providers.StaticJsonRpcProvider;
+};
+export type ChainStates = Record<string, ChainState>;
