@@ -148,15 +148,12 @@ describe('walletWatcher', () => {
         2,
         `critical-low-balance-${opsGenieAliasSuffix}`
       );
-      expect(limitedSendToOpsGenieLowLevel).toHaveBeenCalledWith(
-        {
-          priority: 'P2',
-          alias: `low-balance-${opsGenieAliasSuffix}`,
-          message: `Low balance alert for address ${addressToBeFunded} on chain ${chainName}`,
-          description: `Current balance: 190000000000000000\nThreshold: 200000000000000000`,
-        },
-        config.opsGenieConfig
-      );
+      expect(limitedSendToOpsGenieLowLevel).toHaveBeenCalledWith({
+        priority: 'P2',
+        alias: `low-balance-${opsGenieAliasSuffix}`,
+        message: `Low balance alert for address ${addressToBeFunded} on chain ${chainName}`,
+        description: `Current balance: 190000000000000000\nThreshold: 200000000000000000`,
+      });
     });
 
     it('should send critical alert for low balance on wallet', async () => {
@@ -170,15 +167,12 @@ describe('walletWatcher', () => {
 
       expect(limitedCloseOpsGenieAlertWithAlias).toHaveBeenCalledWith(`get-balance-error-${opsGenieAliasSuffix}`);
 
-      expect(limitedSendToOpsGenieLowLevel).toHaveBeenCalledWith(
-        {
-          priority: 'P1',
-          alias: `critical-low-balance-${opsGenieAliasSuffix}`,
-          message: `Critical low balance alert for address ${addressToBeFunded} on chain ${chainName}`,
-          description: `Current balance: 90000000000000000\nThreshold: 200000000000000000\nCritical threshold: 100000000000000000`,
-        },
-        config.opsGenieConfig
-      );
+      expect(limitedSendToOpsGenieLowLevel).toHaveBeenCalledWith({
+        priority: 'P1',
+        alias: `critical-low-balance-${opsGenieAliasSuffix}`,
+        message: `Critical low balance alert for address ${addressToBeFunded} on chain ${chainName}`,
+        description: `Current balance: 90000000000000000\nThreshold: 200000000000000000\nCritical threshold: 100000000000000000`,
+      });
     });
 
     it('should not send alert if balance is above threshold', async () => {
@@ -222,15 +216,12 @@ describe('walletWatcher', () => {
         `critical-low-balance-${opsGenieAliasSuffix}`
       );
       expect(limitedSendToOpsGenieLowLevel).toHaveBeenCalledTimes(1);
-      expect(limitedSendToOpsGenieLowLevel).toHaveBeenCalledWith(
-        {
-          priority: 'P2',
-          alias: `low-balance-${opsGenieAliasSuffix}`,
-          message: `Low balance alert for address ${addressToBeFunded} on chain ${chainName}`,
-          description: `Current balance: 140000000000000000\nThreshold: 200000000000000000`,
-        },
-        config.opsGenieConfig
-      );
+      expect(limitedSendToOpsGenieLowLevel).toHaveBeenCalledWith({
+        priority: 'P2',
+        alias: `low-balance-${opsGenieAliasSuffix}`,
+        message: `Low balance alert for address ${addressToBeFunded} on chain ${chainName}`,
+        description: `Current balance: 140000000000000000\nThreshold: 200000000000000000`,
+      });
     });
 
     it('should retry provider.getBalance() on error', async () => {
@@ -250,15 +241,12 @@ describe('walletWatcher', () => {
         2,
         `critical-low-balance-${opsGenieAliasSuffix}`
       );
-      expect(limitedSendToOpsGenieLowLevel).toHaveBeenCalledWith(
-        {
-          priority: 'P2',
-          alias: `low-balance-${opsGenieAliasSuffix}`,
-          message: `Low balance alert for address ${addressToBeFunded} on chain ${chainName}`,
-          description: `Current balance: 190000000000000000\nThreshold: 200000000000000000`,
-        },
-        config.opsGenieConfig
-      );
+      expect(limitedSendToOpsGenieLowLevel).toHaveBeenCalledWith({
+        priority: 'P2',
+        alias: `low-balance-${opsGenieAliasSuffix}`,
+        message: `Low balance alert for address ${addressToBeFunded} on chain ${chainName}`,
+        description: `Current balance: 190000000000000000\nThreshold: 200000000000000000`,
+      });
     });
 
     it('should send alert when provider.getBalance() fails on wallet', async () => {
@@ -272,15 +260,12 @@ describe('walletWatcher', () => {
 
       expect(getBalanceMock).toHaveBeenCalledTimes(3);
 
-      expect(limitedSendToOpsGenieLowLevel).toHaveBeenCalledWith(
-        {
-          priority: 'P2',
-          alias: `get-balance-error-${opsGenieAliasSuffix}`,
-          message: `Unable to get balance for address ${addressToBeFunded} on chain ${chainName}`,
-          description: expect.stringContaining('Unexpected RPC error'),
-        },
-        config.opsGenieConfig
-      );
+      expect(limitedSendToOpsGenieLowLevel).toHaveBeenCalledWith({
+        priority: 'P2',
+        alias: `get-balance-error-${opsGenieAliasSuffix}`,
+        message: `Unable to get balance for address ${addressToBeFunded} on chain ${chainName}`,
+        description: expect.stringContaining('Unexpected RPC error'),
+      });
     });
   });
 });
