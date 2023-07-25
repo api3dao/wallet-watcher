@@ -29,7 +29,5 @@ functions:
     handler: src/handlers.walletWatcherHandler
     timeout: 360
     memorySize: 128
-    # environment:
-    #    WALLET_ENABLE_SEND_FUNDS: true # Do not enable this in dev environments (!)
     events:
       - schedule: rate(5 minutes)
