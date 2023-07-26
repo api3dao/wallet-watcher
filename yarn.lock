@@ -123,7 +123,7 @@
     lodash "^4.17.21"
     zod "^3.20.6"
 
-"@api3/operations-utilities@^0.2.0":
+"@api3/operations-utilities@^0.2.2":
   version "0.2.2"
   resolved "https://registry.yarnpkg.com/@api3/operations-utilities/-/operations-utilities-0.2.2.tgz#b4ac3b3fa5a6bf4f69dbd9ec877030fcc7c2642a"
   integrity sha512-0muxP3LGZWSAZCvV+RnaWSt7AN80fAS2xlWLwDdGlCVaPd4hCv8vsZ0u9TEVfROTQT3DYaIOiBBdQuF4YEIedQ==

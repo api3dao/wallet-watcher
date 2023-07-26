@@ -1,10 +1,12 @@
 {
   "chains": {
     "1": {
-      "rpc": "https://eth-mainnet.alchemyapi.io/v2/something"
+      "rpc": "https://eth-mainnet.alchemyapi.io/v2/something",
+      "name": "mainnet"
     },
     "5": {
-      "rpc": "https://rpc.ankr.com/eth_goerli"
+      "rpc": "https://rpc.ankr.com/eth_goerli",
+      "name": "goerli"
     }
   },
   "opsGenieConfig": {
@@ -16,10 +18,5 @@
         "name": "name"
       }
     ]
-  },
-  "explorerUrls": {
-    "1": "https://etherscan.io",
-    "5": "https://goerli.etherscan.io/",
-    "80001": "https://mumbai.polygonscan.com/"
   }
 }

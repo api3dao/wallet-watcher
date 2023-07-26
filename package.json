@@ -14,7 +14,7 @@
   },
   "scripts": {
     "build": "yarn run clean && yarn run compile",
-    "clean": "rimraf -rf ./dist *.tgz",
+    "clean": "rimraf -rf ./dist *.tgz ./.build",
     "compile": "tsc -p tsconfig.build.json",
     "dev:api": "ts-node test/server/server.ts",
     "dev:eth-node": "hardhat node",
@@ -37,8 +37,7 @@
     "sls:remove": "sls remove --region us-east-1",
     "test": "jest --selectProjects unit",
     "test:e2e": "SILENCE_LOGGER=true jest --selectProjects e2e --runInBand",
-    "prepare": "husky install",
-    "load-operations-wallets": "ts-node scripts/load-operations-wallets.ts"
+    "prepare": "husky install"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.2.3",
@@ -79,7 +78,7 @@
     "@api3/airnode-validator": "^0.11.1",
     "@api3/chains": "^2.1.0",
     "@api3/ois": "^2.0.0",
-    "@api3/operations-utilities": "^0.2.0",
+    "@api3/operations-utilities": "^0.2.2",
     "@api3/promise-utils": "^0.4.0",
     "@ethersproject/experimental": "^5.5.0",
     "@openzeppelin/merkle-tree": "^1.0.4",

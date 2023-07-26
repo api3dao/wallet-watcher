@@ -65,8 +65,8 @@ describe('walletWatcherHandler', () => {
 
     (await walletHandlers.walletWatcherHandler({} as any, {} as any, {} as any)) as any;
 
-    expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith('serverless-wallet-watcher', config.opsGenieConfig);
-    expect(sendOpsGenieHeartbeatSpy).toHaveBeenCalledWith('wallet-watcher', config.opsGenieConfig);
+    expect(closeOpsGenieAlertWithAliasSpy).toHaveBeenCalledWith('serverless-wallet-watcher');
+    expect(sendOpsGenieHeartbeatSpy).toHaveBeenCalledWith('wallet-watcher');
   });
 
   it('sends ops genie alert for if the run throws an error', async () => {
@@ -79,14 +79,11 @@ describe('walletWatcherHandler', () => {
     });
     (await walletHandlers.walletWatcherHandler({} as any, {} as any, {} as any)) as any;
 
-    expect(sendToOpsGenieLowLevelSpy).toHaveBeenCalledWith(
-      {
-        message: `Wallet Watcher encountered an unexpected error: ${error}`,
-        alias: 'serverless-wallet-watcher',
-        description: (error as Error).stack,
-      },
-      config.opsGenieConfig
-    );
-    expect(sendOpsGenieHeartbeatSpy).toHaveBeenCalledWith('wallet-watcher', config.opsGenieConfig);
+    expect(sendToOpsGenieLowLevelSpy).toHaveBeenCalledWith({
+      message: `Wallet Watcher encountered an unexpected error: ${error}`,
+      alias: 'serverless-wallet-watcher',
+      description: (error as Error).stack,
+    });
+    expect(sendOpsGenieHeartbeatSpy).toHaveBeenCalledWith('wallet-watcher');
   });
 });

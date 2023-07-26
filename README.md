@@ -35,8 +35,6 @@ Be sure to watch the logs to make sure the applications are behaving as you expe
 - `opsGenieConfig.responders[n].id` (optional): The Ops Genie responder id. If left undefined this will be inferred from
   the `Ops Genie api key`.
 
-- `explorerUrls.<chainId>`: The explorer URL.
-
 ### `wallets.json`
 
 - `<chainId>[]`: A list of wallets to check and top up for a chain.
@@ -54,8 +52,8 @@ Be sure to watch the logs to make sure the applications are behaving as you expe
 - `<chainId>[n].apiName` (optional): The name of the API provider.
 - `<chainId>[n].providerXpub`: The extended public key of the sponsor address.
 - `<chainId>[n].sponsor`: The sponsor address to derive the destination wallet.
-- `<chainId>[n].lowBalance.value`: The value used to send an alert if wallet balance is below it.
-- `<chainId>[n].lowBalance.unit`: The token units used to parse the `lowBalance.value` for balance check (i.e. ether,
-  wei, etc).
-- `<chainId>[n].lowBalance.criticalValue`: The value used to send a _critical_ alert if wallet balance is below it. This
-  value must be below the `lowBalance.value` value.
+- `<chainId>[n].lowThreshold.value`: The value used to send an alert if wallet balance is below it.
+- `<chainId>[n].lowThreshold.unit`: The token units used to parse the `lowThreshold.value` for balance check (i.e.
+  ether, wei, etc).
+- `<chainId>[n].lowThreshold.criticalValue`: The value used to send a _critical_ alert if wallet balance is below it.
+  This value must be below the `lowThreshold.value` value.

@@ -4,6 +4,7 @@ export const buildConfig = (): Config => ({
   chains: {
     '31337': {
       rpc: 'http://127.0.0.1:8545/',
+      name: 'hardhat',
     },
   },
   opsGenieConfig: {
@@ -15,9 +16,6 @@ export const buildConfig = (): Config => ({
         name: 'name',
       },
     ],
-  },
-  explorerUrls: {
-    '31337': 'https://explorer.test.com/',
   },
 });
 

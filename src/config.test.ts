@@ -42,6 +42,13 @@ describe('config.json', () => {
           path: ['chains', '31337', 'rpc'],
           message: 'Required',
         },
+        {
+          code: 'invalid_type',
+          expected: 'string',
+          received: 'undefined',
+          path: ['chains', '31337', 'name'],
+          message: 'Required',
+        },
       ])}`
     );
   });

@@ -7,6 +7,7 @@ export const evmAddressSchema = z.string().regex(/^0x[a-fA-F0-9]{40}$/);
 export const chainConfigSchema = z
   .object({
     rpc: z.string(),
+    name: z.string(),
   })
   .strict();
 
@@ -27,7 +28,6 @@ export const configSchema = z
   .object({
     opsGenieConfig: opsGenieConfigSchema,
     chains: chainsConfigSchema,
-    explorerUrls: z.record(z.string(), z.string()),
   })
   .strict();
 
