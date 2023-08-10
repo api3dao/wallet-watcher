@@ -57,6 +57,12 @@ describe('walletWatcher', () => {
         message: 'Low balance alert for address 0xC26f10e1b37A1E7A7De266FeF0c19533489C3e75 on chain 31337',
         priority: 'P2',
       });
+      expect(prismaMock.walletBalance.create).toHaveBeenCalledWith({
+        name: 'api3',
+        chainName: 'hardhat',
+        walletAddress: '0xC26f10e1b37A1E7A7De266FeF0c19533489C3e75',
+        balance: 0.15,
+      });
     });
   });
 });
