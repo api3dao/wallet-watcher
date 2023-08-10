@@ -38,6 +38,7 @@ describe('walletWatcher', () => {
     await hre.network.provider.send('hardhat_reset');
 
     jest.clearAllMocks();
+    jest.spyOn(walletWatcher, 'getChainName').mockImplementation(() => 'hardhat');
   });
 
   describe('runWalletWatcher', () => {
@@ -54,14 +55,16 @@ describe('walletWatcher', () => {
       expect(limitedSendToOpsGenieLowLevelMock).toHaveBeenCalledWith({
         alias: 'low-balance-0xa029e0cf3ff3ea6562c3e67315c9bbec596fb7ac0ac862365eb7ec783b426c0d',
         description: 'Current balance: 150000000000000000\nThreshold: 200000000000000000',
-        message: 'Low balance alert for address 0xC26f10e1b37A1E7A7De266FeF0c19533489C3e75 on chain 31337',
+        message: 'Low balance alert for address 0xC26f10e1b37A1E7A7De266FeF0c19533489C3e75 on chain hardhat',
         priority: 'P2',
       });
       expect(prismaMock.walletBalance.create).toHaveBeenCalledWith({
-        name: 'api3',
-        chainName: 'hardhat',
-        walletAddress: '0xC26f10e1b37A1E7A7De266FeF0c19533489C3e75',
-        balance: 0.15,
+        data: {
+          name: 'api3',
+          chainName: 'hardhat',
+          walletAddress: '0xC26f10e1b37A1E7A7De266FeF0c19533489C3e75',
+          balance: 0.15,
+        },
       });
     });
   });
