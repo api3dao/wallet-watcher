@@ -7,6 +7,7 @@ import { ethers } from 'ethers';
 import { isNil, uniqBy } from 'lodash';
 import { API3_XPUB } from './constants';
 import { ChainStates, ChainsConfig, Config, Wallet, Wallets } from './types';
+import prisma from './database';
 
 const { limitedSendToOpsGenieLowLevel, limitedCloseOpsGenieAlertWithAlias } = getOpsGenieLimiter();
 
@@ -74,6 +75,7 @@ export const determineWalletAddress = (wallet: Wallet) => {
   switch (wallet.walletType) {
     case 'API3':
     case 'Provider':
+    case 'Monitor':
       return wallet;
     // Replace destination addresses for derived PSP and Airseeker wallets
     case 'API3-Sponsor':
@@ -116,75 +118,96 @@ export const runWalletWatcher = async ({ chains }: Config, wallets: Wallets) => 
   const walletsToAssess = uniqueWalletsPerChain.filter((wallet) => !isNil(chainStates[wallet.chainId]));
 
   // Check balances for each wallet
-  const walletBalances = await Promise.allSettled(
+  await Promise.allSettled(
     walletsToAssess.map(async (wallet) => {
       const opsGenieAliasSuffix = ethers.utils.keccak256(
         ethers.utils.toUtf8Bytes(`${wallet.address}${wallet.chainId}`)
       );
-
       const chainState = chainStates[wallet.chainId];
-      const getBalanceResult = await go(() => chainState.provider.getBalance(wallet.address), {
-        totalTimeoutMs: 15_000,
-        retries: 2,
-        delay: { type: 'static', delayMs: 4_900 },
-        onAttemptError: ({ error }) => log(error.message),
-      });
 
-      if (!getBalanceResult.success) {
-        const message = `Unable to get balance for address ${wallet.address} on chain ${chainState.chainName}`;
-        await limitedSendToOpsGenieLowLevel({
-          priority: 'P2',
-          alias: `get-balance-error-${opsGenieAliasSuffix}`,
-          message,
-          description: `${getBalanceResult.error.message}\n${getBalanceResult.error.stack}`,
+      try {
+        const getBalanceResult = await go(() => chainState.provider.getBalance(wallet.address), {
+          totalTimeoutMs: 15_000,
+          retries: 2,
+          delay: { type: 'static', delayMs: 4_900 },
+          onAttemptError: ({ error }) => log(error.message),
         });
-        throw new Error(message);
-      } else {
-        limitedCloseOpsGenieAlertWithAlias(`get-balance-error-${opsGenieAliasSuffix}`);
-      }
 
-      const balance = getBalanceResult.data;
-
-      // Send alert if balance is equal or below threshold
-      const balanceThreshold = ethers.utils.parseUnits(wallet.lowThreshold.value.toString(), wallet.lowThreshold.unit);
-      if (balance.lte(balanceThreshold)) {
-        if (wallet.lowThreshold.criticalValue) {
-          // Send emergency alert if balance is even below a critical percentage
-          const criticalBalanceThreshold = ethers.utils.parseUnits(
-            wallet.lowThreshold.criticalValue.toString(),
-            wallet.lowThreshold.unit
-          );
-          if (balance.lte(criticalBalanceThreshold)) {
-            const criticalMessage = `Critical low balance alert for address ${wallet.address} on chain ${chainState.chainName}`;
-            await limitedSendToOpsGenieLowLevel({
-              priority: 'P1',
-              alias: `critical-low-balance-${opsGenieAliasSuffix}`,
-              message: criticalMessage,
-              description: `Current balance: ${balance.toString()}\nThreshold: ${balanceThreshold.toString()}\nCritical threshold: ${criticalBalanceThreshold.toString()}`,
-            });
-            return;
-          } else {
-            limitedCloseOpsGenieAlertWithAlias(`critical-low-balance-${opsGenieAliasSuffix}`);
-          }
+        if (!getBalanceResult.success) {
+          const message = `Unable to get balance for address ${wallet.address} on chain ${chainState.chainName}`;
+          await limitedSendToOpsGenieLowLevel({
+            priority: 'P2',
+            alias: `get-balance-error-${opsGenieAliasSuffix}`,
+            message,
+            description: `${getBalanceResult.error.message}\n${getBalanceResult.error.stack}`,
+          });
+          throw new Error(message);
+        } else {
+          limitedCloseOpsGenieAlertWithAlias(`get-balance-error-${opsGenieAliasSuffix}`);
         }
 
-        const message = `Low balance alert for address ${wallet.address} on chain ${chainState.chainName}`;
-        await limitedSendToOpsGenieLowLevel({
-          priority: 'P2',
-          alias: `low-balance-${opsGenieAliasSuffix}`,
-          message,
-          description: `Current balance: ${balance.toString()}\nThreshold: ${balanceThreshold.toString()}`,
+        const balance = getBalanceResult.data;
+        await prisma.walletBalance.create({
+          data: {
+            name: wallet.name,
+            chainName: chainState.chainName,
+            walletAddress: wallet.address,
+            balance: Number(ethers.utils.formatEther(balance)),
+          },
         });
-      } else {
-        limitedCloseOpsGenieAlertWithAlias(`low-balance-${opsGenieAliasSuffix}`);
+
+        // Check balances against thresholds if the wallet monitorType is "alert"
+        if (wallet.monitorType === 'alert') {
+          // Send alert if balance is equal or below threshold
+          const balanceThreshold = ethers.utils.parseUnits(
+            wallet.lowThreshold.value.toString(),
+            wallet.lowThreshold.unit
+          );
+          if (balance.lte(balanceThreshold)) {
+            if (wallet.lowThreshold.criticalValue) {
+              // Send emergency alert if balance is even below a critical percentage
+              const criticalBalanceThreshold = ethers.utils.parseUnits(
+                wallet.lowThreshold.criticalValue.toString(),
+                wallet.lowThreshold.unit
+              );
+              if (balance.lte(criticalBalanceThreshold)) {
+                const criticalMessage = `Critical low balance alert for address ${wallet.address} on chain ${chainState.chainName}`;
+                await limitedSendToOpsGenieLowLevel({
+                  priority: 'P1',
+                  alias: `critical-low-balance-${opsGenieAliasSuffix}`,
+                  message: criticalMessage,
+                  description: `Current balance: ${balance.toString()}\nThreshold: ${balanceThreshold.toString()}\nCritical threshold: ${criticalBalanceThreshold.toString()}`,
+                });
+                return;
+              } else {
+                limitedCloseOpsGenieAlertWithAlias(`critical-low-balance-${opsGenieAliasSuffix}`);
+              }
+            }
+
+            const message = `Low balance alert for address ${wallet.address} on chain ${chainState.chainName}`;
+            await limitedSendToOpsGenieLowLevel({
+              priority: 'P2',
+              alias: `low-balance-${opsGenieAliasSuffix}`,
+              message,
+              description: `Current balance: ${balance.toString()}\nThreshold: ${balanceThreshold.toString()}`,
+            });
+          } else {
+            limitedCloseOpsGenieAlertWithAlias(`low-balance-${opsGenieAliasSuffix}`);
+          }
+        }
+      } catch (e) {
+        const err = e as Error;
+        log('Failed to check wallet balance', 'ERROR', `Error: ${err.message}\n${err.stack}`);
+
+        await limitedSendToOpsGenieLowLevel({
+          priority: 'P3',
+          alias: `general-wallet-watcher-error-${ethers.utils.keccak256(Buffer.from(err.name.toString()))}-${
+            wallet.name
+          }-${chainState.name}`,
+          message: `A general error occurred in the wallet watcher ${wallet.name} ${chainState.name}`,
+          description: `${err.message}\n${err.stack}`,
+        });
       }
     })
   );
-
-  // Log any errors and return wallets with a balance
-  walletBalances.forEach(async (settledPromise) => {
-    if (settledPromise.status === 'rejected') {
-      log('Failed to check wallet balance', 'ERROR', `Error: ${settledPromise.reason.message}`);
-    }
-  });
 };

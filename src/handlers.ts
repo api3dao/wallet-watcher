@@ -1,12 +1,5 @@
 import path from 'path';
-import {
-  cacheOpenAlerts,
-  closeOpsGenieAlertWithAlias,
-  log,
-  sendOpsGenieHeartbeat,
-  sendToOpsGenieLowLevel,
-} from '@api3/operations-utilities';
-import { go } from '@api3/promise-utils';
+import { cacheOpenAlerts, log, sendOpsGenieHeartbeat, sendToOpsGenieLowLevel } from '@api3/operations-utilities';
 import { Context, ScheduledEvent, ScheduledHandler } from 'aws-lambda';
 import 'source-map-support/register';
 import { loadConfig, loadWallets } from './config';
@@ -23,23 +16,22 @@ export const walletWatcherHandler: ScheduledHandler = async (
 ): Promise<void> => {
   log('Starting Wallet Watcher');
   const startedAt = new Date();
-  const config = loadConfig(path.join(__dirname, '../config/config.json'));
-  const wallets = loadWallets(path.join(__dirname, '../config/wallets.json'));
-  await cacheOpenAlerts(config.opsGenieConfig);
 
-  const goResult = await go(() => runWalletWatcher(config, wallets));
+  try {
+    const config = loadConfig(path.join(__dirname, '../config/config.json'));
+    const wallets = loadWallets(path.join(__dirname, '../config/wallets.json'));
 
-  if (!goResult.success) {
+    await cacheOpenAlerts(config.opsGenieConfig);
+    await runWalletWatcher(config, wallets);
+    await sendOpsGenieHeartbeat('wallet-watcher');
+  } catch (err) {
+    const error = err as Error;
     await sendToOpsGenieLowLevel({
-      message: `Wallet Watcher encountered an unexpected error: ${goResult.error}`,
-      alias: 'serverless-wallet-watcher',
-      description: goResult.error.stack,
+      message: `Serverless wallet watcher encountered an error: ${error.message}`,
+      alias: 'serverless-wallet-watcher-error',
+      description: error.stack,
     });
-  } else {
-    await closeOpsGenieAlertWithAlias('serverless-wallet-watcher');
   }
-
-  await sendOpsGenieHeartbeat('wallet-watcher');
 
   const endedAt = new Date();
   log(`Wallet Watcher run delta: ${(endedAt.getTime() - startedAt.getTime()) / 1000}s`);

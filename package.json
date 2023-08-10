@@ -14,7 +14,7 @@
   },
   "scripts": {
     "build": "yarn run clean && yarn run compile",
-    "clean": "rimraf -rf ./dist *.tgz ./.build",
+    "clean": "rimraf -rf ./dist *.tgz ./.build ./.serverless",
     "compile": "tsc -p tsconfig.build.json",
     "dev:api": "ts-node test/server/server.ts",
     "dev:eth-node": "hardhat node",
@@ -37,7 +37,8 @@
     "sls:remove": "sls remove --region us-east-1",
     "test": "jest --selectProjects unit",
     "test:e2e": "SILENCE_LOGGER=true jest --selectProjects e2e --runInBand",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "deploy:PRODUCTION": "yarn build && yarn sls deploy --config serverless.yml"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.2.3",
@@ -82,10 +83,12 @@
     "@api3/promise-utils": "^0.4.0",
     "@ethersproject/experimental": "^5.5.0",
     "@openzeppelin/merkle-tree": "^1.0.4",
+    "@prisma/client": "^4.14.1",
     "@slack/bolt": "^3.13.1",
     "axios": "^1.4.0",
     "ethers": "^5.4.4",
     "lodash": "^4.17.21",
+    "prisma": "^4.14.1",
     "source-map-support": "^0.5.21",
     "zod": "^3.17.3"
   }
