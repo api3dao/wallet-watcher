@@ -1,8 +1,16 @@
 import * as operationsUtils from '@api3/operations-utilities';
+import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
+import { PrismaClient } from '@prisma/client';
 import * as configFunctions from './config';
 import * as walletHandlers from './handlers';
 import * as walletWatcher from './wallet-watcher';
+import prisma from './database';
 import * as fixtures from '../test/fixtures';
+
+jest.mock('./database', () => ({
+  __esModule: true,
+  default: mockDeep<PrismaClient>(),
+}));
 
 jest.setTimeout(20_000);
 
@@ -10,16 +18,19 @@ process.env.OPSGENIE_API_KEY = 'test';
 const oldEnv = process.env;
 
 describe('walletWatcherHandler', () => {
+  const prismaMock = prisma as unknown as DeepMockProxy<PrismaClient>;
   const config = fixtures.buildConfig();
   const wallets = fixtures.buildWallets();
 
   let sendToOpsGenieLowLevelSpy: jest.SpyInstance;
 
   beforeEach(async () => {
+    mockReset(prismaMock);
     process.env = oldEnv;
     jest.restoreAllMocks();
     jest.clearAllTimers();
 
+    // prismaMock.walletBalance.create.mockImplementation()
     // Reset alerts to ensure a clean state for each test
     operationsUtils.resetCachedAlerts();
     operationsUtils.resetOpenAlerts();

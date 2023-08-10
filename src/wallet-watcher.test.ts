@@ -10,14 +10,23 @@ jest.mock('@api3/operations-utilities', () => ({
 }));
 
 import { ethers } from 'ethers';
+import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
+import { PrismaClient } from '@prisma/client';
 import * as walletWatcher from './wallet-watcher';
+import prisma from './database';
 import * as constants from '../src/constants';
 import { WalletType } from '../src/types';
 import * as fixtures from '../test/fixtures';
 
+jest.mock('./database', () => ({
+  __esModule: true,
+  default: mockDeep<PrismaClient>(),
+}));
+
 process.env.OPSGENIE_API_KEY = 'test';
 
 describe('walletWatcher', () => {
+  const prismaMock = prisma as unknown as DeepMockProxy<PrismaClient>;
   const config = fixtures.buildConfig();
   const wallets = fixtures.buildWallets();
   const name = 'api3';
@@ -35,6 +44,7 @@ describe('walletWatcher', () => {
   jest.setTimeout(16_000);
 
   beforeEach(async () => {
+    mockReset(prismaMock);
     jest.resetAllMocks();
 
     jest.spyOn(walletWatcher, 'getChainName').mockReturnValue(chainName);

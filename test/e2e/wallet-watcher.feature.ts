@@ -11,19 +11,29 @@ jest.spyOn(operationsUtils, 'getOpsGenieLimiter').mockImplementation(() => {
   };
 });
 import hre from 'hardhat';
+import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
+import { PrismaClient } from '@prisma/client';
+import prisma from '../../src/database';
 import * as walletWatcher from '../../src/wallet-watcher';
 import * as fixtures from '../fixtures';
+
+jest.mock('./database', () => ({
+  __esModule: true,
+  default: mockDeep<PrismaClient>(),
+}));
 
 // Jest version 27 has a bug where jest.setTimeout does not work correctly inside describe or test blocks
 // https://github.com/facebook/jest/issues/11607
 jest.setTimeout(60_000);
 
 describe('walletWatcher', () => {
+  const prismaMock = prisma as unknown as DeepMockProxy<PrismaClient>;
   const config = fixtures.buildConfig();
   const wallets = fixtures.buildWallets();
   const chainId = '31337';
 
   beforeEach(async () => {
+    mockReset(prismaMock);
     // Reset the local hardhat network state for each test
     await hre.network.provider.send('hardhat_reset');
 
