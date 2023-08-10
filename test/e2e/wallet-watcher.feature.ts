@@ -17,7 +17,7 @@ import prisma from '../../src/database';
 import * as walletWatcher from '../../src/wallet-watcher';
 import * as fixtures from '../fixtures';
 
-jest.mock('./database', () => ({
+jest.mock('../../src/database', () => ({
   __esModule: true,
   default: mockDeep<PrismaClient>(),
 }));
