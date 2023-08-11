@@ -278,7 +278,7 @@ describe('walletWatcher', () => {
       expect(getBalanceMock).toHaveBeenCalledTimes(3);
 
       expect(limitedSendToOpsGenieLowLevel).toHaveBeenCalledWith({
-        priority: 'P2',
+        priority: 'P3',
         alias: `get-balance-error-${opsGenieAliasSuffix}`,
         message: `Unable to get balance for address ${addressToBeFunded} on chain ${chainName}`,
         description: expect.stringContaining('Unexpected RPC error'),

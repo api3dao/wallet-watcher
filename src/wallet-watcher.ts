@@ -5,9 +5,15 @@ import { getOpsGenieLimiter, log } from '@api3/operations-utilities';
 import { go } from '@api3/promise-utils';
 import { ethers } from 'ethers';
 import { isNil, uniqBy } from 'lodash';
+import Bottleneck from 'bottleneck';
 import { API3_XPUB } from './constants';
 import { ChainStates, ChainsConfig, Config, Wallet, Wallets } from './types';
 import prisma from './database';
+
+const limiter = new Bottleneck({
+  maxConcurrent: 2,
+  minTime: 300,
+});
 
 const { limitedSendToOpsGenieLowLevel, limitedCloseOpsGenieAlertWithAlias } = getOpsGenieLimiter();
 
@@ -73,6 +79,7 @@ export const deriveSponsorWalletAddress = (sponsor: string, xpub: string, protoc
  */
 export const determineWalletAddress = (wallet: Wallet) => {
   switch (wallet.walletType) {
+    // Return the address in the config without any derivation
     case 'API3':
     case 'Provider':
     case 'Monitor':
@@ -126,25 +133,28 @@ export const runWalletWatcher = async ({ chains }: Config, wallets: Wallets) => 
       const chainState = chainStates[wallet.chainId];
 
       try {
-        const getBalanceResult = await go(() => chainState.provider.getBalance(wallet.address), {
-          totalTimeoutMs: 15_000,
-          retries: 2,
-          delay: { type: 'static', delayMs: 4_900 },
-          onAttemptError: ({ error }) => log(error.message),
-        });
+        const getBalanceResult = await limiter.schedule(() =>
+          go(() => chainState.provider.getBalance(wallet.address), {
+            totalTimeoutMs: 15_000,
+            retries: 2,
+            delay: { type: 'static', delayMs: 4_900 },
+            onAttemptError: ({ error }) => log(error.message),
+          })
+        );
 
         if (!getBalanceResult.success) {
           const message = `Unable to get balance for address ${wallet.address} on chain ${chainState.chainName}`;
+          log(message, 'ERROR', `Error: ${getBalanceResult.error.message}\n${getBalanceResult.error.stack}`);
           await limitedSendToOpsGenieLowLevel({
-            priority: 'P2',
+            priority: 'P3',
             alias: `get-balance-error-${opsGenieAliasSuffix}`,
             message,
             description: `${getBalanceResult.error.message}\n${getBalanceResult.error.stack}`,
           });
-          throw new Error(message);
-        } else {
-          limitedCloseOpsGenieAlertWithAlias(`get-balance-error-${opsGenieAliasSuffix}`);
+
+          return;
         }
+        limitedCloseOpsGenieAlertWithAlias(`get-balance-error-${opsGenieAliasSuffix}`);
 
         const balance = getBalanceResult.data;
         await prisma.walletBalance.create({
