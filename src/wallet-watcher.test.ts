@@ -47,7 +47,7 @@ describe('walletWatcher', () => {
     mockReset(prismaMock);
     jest.resetAllMocks();
 
-    jest.spyOn(walletWatcher, 'getChainName').mockReturnValue(chainName);
+    jest.spyOn(walletWatcher, 'getChainAlias').mockReturnValue(chainName);
   });
 
   describe('initializeChainStates', () => {

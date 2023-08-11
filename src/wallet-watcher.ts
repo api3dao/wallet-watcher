@@ -6,6 +6,7 @@ import { go } from '@api3/promise-utils';
 import { ethers } from 'ethers';
 import { isNil, uniqBy } from 'lodash';
 import Bottleneck from 'bottleneck';
+import { Prisma } from '@prisma/client';
 import { API3_XPUB } from './constants';
 import { ChainStates, ChainsConfig, Config, Wallet, Wallets } from './types';
 import prisma from './database';
@@ -23,7 +24,7 @@ const { limitedSendToOpsGenieLowLevel, limitedCloseOpsGenieAlertWithAlias } = ge
  * @param chainId the chain id
  * @returns the chain name
  */
-export const getChainName = (chainId: string) => CHAINS.find(({ id }) => id === chainId)?.name;
+export const getChainAlias = (chainId: string) => CHAINS.find(({ id }) => id === chainId)?.alias;
 
 /**
  * Returns a provider instance based on wallet config and a chain name
@@ -45,7 +46,7 @@ export const getProvider = (url: string, chainName: string, chainId: string) =>
  */
 export const initializeChainStates = (chains: ChainsConfig) => {
   return Object.entries(chains).reduce((acc: ChainStates, [chainId, chain]) => {
-    const chainName = getChainName(chainId) ?? chainId;
+    const chainName = getChainAlias(chainId) ?? chainId;
     const provider = getProvider(chain.rpc, chainName, chainId);
 
     return {
@@ -125,7 +126,7 @@ export const runWalletWatcher = async ({ chains }: Config, wallets: Wallets) => 
   const walletsToAssess = uniqueWalletsPerChain.filter((wallet) => !isNil(chainStates[wallet.chainId]));
 
   // Check balances for each wallet
-  await Promise.allSettled(
+  const createManyInput = await Promise.all(
     walletsToAssess.map(async (wallet) => {
       const opsGenieAliasSuffix = ethers.utils.keccak256(
         ethers.utils.toUtf8Bytes(`${wallet.address}${wallet.chainId}`)
@@ -145,6 +146,7 @@ export const runWalletWatcher = async ({ chains }: Config, wallets: Wallets) => 
         if (!getBalanceResult.success) {
           const message = `Unable to get balance for address ${wallet.address} on chain ${chainState.chainName}`;
           log(message, 'ERROR', `Error: ${getBalanceResult.error.message}\n${getBalanceResult.error.stack}`);
+
           await limitedSendToOpsGenieLowLevel({
             priority: 'P3',
             alias: `get-balance-error-${opsGenieAliasSuffix}`,
@@ -157,14 +159,6 @@ export const runWalletWatcher = async ({ chains }: Config, wallets: Wallets) => 
         limitedCloseOpsGenieAlertWithAlias(`get-balance-error-${opsGenieAliasSuffix}`);
 
         const balance = getBalanceResult.data;
-        await prisma.walletBalance.create({
-          data: {
-            name: wallet.name,
-            chainName: chainState.chainName,
-            walletAddress: wallet.address,
-            balance: Number(ethers.utils.formatEther(balance)),
-          },
-        });
 
         // Check balances against thresholds if the wallet monitorType is "alert"
         if (wallet.monitorType === 'alert') {
@@ -173,6 +167,7 @@ export const runWalletWatcher = async ({ chains }: Config, wallets: Wallets) => 
             wallet.lowThreshold.value.toString(),
             wallet.lowThreshold.unit
           );
+
           if (balance.lte(balanceThreshold)) {
             if (wallet.lowThreshold.criticalValue) {
               // Send emergency alert if balance is even below a critical percentage
@@ -182,13 +177,13 @@ export const runWalletWatcher = async ({ chains }: Config, wallets: Wallets) => 
               );
               if (balance.lte(criticalBalanceThreshold)) {
                 const criticalMessage = `Critical low balance alert for address ${wallet.address} on chain ${chainState.chainName}`;
+
                 await limitedSendToOpsGenieLowLevel({
                   priority: 'P1',
                   alias: `critical-low-balance-${opsGenieAliasSuffix}`,
                   message: criticalMessage,
                   description: `Current balance: ${balance.toString()}\nThreshold: ${balanceThreshold.toString()}\nCritical threshold: ${criticalBalanceThreshold.toString()}`,
                 });
-                return;
               } else {
                 limitedCloseOpsGenieAlertWithAlias(`critical-low-balance-${opsGenieAliasSuffix}`);
               }
@@ -205,6 +200,13 @@ export const runWalletWatcher = async ({ chains }: Config, wallets: Wallets) => 
             limitedCloseOpsGenieAlertWithAlias(`low-balance-${opsGenieAliasSuffix}`);
           }
         }
+
+        return {
+          name: wallet.name,
+          chainName: chainState.chainName,
+          walletAddress: wallet.address,
+          balance: Number(ethers.utils.formatEther(balance)),
+        };
       } catch (e) {
         const err = e as Error;
         log('Failed to check wallet balance', 'ERROR', `Error: ${err.message}\n${err.stack}`);
@@ -220,4 +222,22 @@ export const runWalletWatcher = async ({ chains }: Config, wallets: Wallets) => 
       }
     })
   );
+
+  const goPrisma = await go(
+    async () =>
+      await prisma.walletBalance.createMany({
+        data: createManyInput.filter((data) => data) as unknown as Prisma.WalletBalanceCreateManyInput,
+      })
+  );
+
+  if (!goPrisma.success) {
+    log('Prisma query error.', 'ERROR', `Error: ${goPrisma.error.message}\n${goPrisma.error.stack}`);
+
+    await limitedSendToOpsGenieLowLevel({
+      priority: 'P3',
+      alias: `general-wallet-watcher-error-${ethers.utils.keccak256(Buffer.from(goPrisma.error.name.toString()))}`,
+      message: `A prisma error occurred in the wallet watcher.`,
+      description: `${goPrisma.error.message}\n${goPrisma.error.stack}`,
+    });
+  }
 };
