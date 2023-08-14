@@ -37,7 +37,10 @@ export const walletTypeSchema = z.union([
   z.literal('Provider-Sponsor'),
   z.literal('API3-Sponsor'),
   z.literal('Airseeker'),
+  z.literal('Monitor'),
 ]);
+
+export const monitorTypeSchema = z.union([z.literal('alert'), z.literal('monitor')]);
 
 export const namedUnits = z.union([
   z.literal('wei'),
@@ -50,7 +53,8 @@ export const namedUnits = z.union([
 ]);
 
 const baseWalletSchema = z.object({
-  apiName: z.string().optional(),
+  monitorType: monitorTypeSchema,
+  name: z.string(),
   lowThreshold: z
     .object({
       value: z.number().positive(),
@@ -94,12 +98,18 @@ const airseekerSponsorWalletSchema = baseWalletSchema.extend({
   providerXpub: z.string(),
 });
 
+export const monitorWalletSchema = baseWalletSchema.extend({
+  walletType: z.literal('Monitor'),
+  address: config.evmAddressSchema,
+});
+
 export const walletSchema = z.discriminatedUnion('walletType', [
   providerWalletSchema,
   api3WalletSchema,
   providerSponsorWalletSchema,
   api3SponsorWalletSchema,
   airseekerSponsorWalletSchema,
+  monitorWalletSchema,
 ]);
 
 export const walletsSchema = z.record(z.string(), z.array(walletSchema));

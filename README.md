@@ -49,7 +49,7 @@ Be sure to watch the logs to make sure the applications are behaving as you expe
     id.
 - `<chainId>[n].address` (required only if `walletType` is `Provider` or `API3`): The destination wallet to be used
   directly without deriving from the sponsor wallet.
-- `<chainId>[n].apiName` (optional): The name of the API provider.
+- `<chainId>[n].name` (optional): The name of the API provider or wallet.
 - `<chainId>[n].providerXpub`: The extended public key of the sponsor address.
 - `<chainId>[n].sponsor`: The sponsor address to derive the destination wallet.
 - `<chainId>[n].lowThreshold.value`: The value used to send an alert if wallet balance is below it.

@@ -10,17 +10,26 @@ jest.mock('@api3/operations-utilities', () => ({
 }));
 
 import { ethers } from 'ethers';
+import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
+import { PrismaClient } from '@prisma/client';
 import * as walletWatcher from './wallet-watcher';
+import prisma from './database';
 import * as constants from '../src/constants';
 import { WalletType } from '../src/types';
 import * as fixtures from '../test/fixtures';
 
+jest.mock('./database', () => ({
+  __esModule: true,
+  default: mockDeep<PrismaClient>(),
+}));
+
 process.env.OPSGENIE_API_KEY = 'test';
 
 describe('walletWatcher', () => {
+  const prismaMock = prisma as unknown as DeepMockProxy<PrismaClient>;
   const config = fixtures.buildConfig();
   const wallets = fixtures.buildWallets();
-  const apiName = 'api3';
+  const name = 'api3';
   const chainName = 'localhost';
   const chainId = '31337';
   const providerXpub =
@@ -35,9 +44,10 @@ describe('walletWatcher', () => {
   jest.setTimeout(16_000);
 
   beforeEach(async () => {
+    mockReset(prismaMock);
     jest.resetAllMocks();
 
-    jest.spyOn(walletWatcher, 'getChainName').mockReturnValue(chainName);
+    jest.spyOn(walletWatcher, 'getChainAlias').mockReturnValue(chainName);
   });
 
   describe('initializeChainStates', () => {
@@ -66,19 +76,21 @@ describe('walletWatcher', () => {
     walletTypes.forEach((walletType) =>
       it(`returns wallet for type ${walletType}`, () => {
         const walletResult = walletWatcher.determineWalletAddress({
-          apiName,
+          name,
           walletType,
           address: addressToBeFunded,
           providerXpub,
           lowThreshold: { value: 0.2, unit: 'ether' },
+          monitorType: 'alert',
         });
         expect(walletResult).toEqual({
-          apiName: 'api3',
+          name: 'api3',
           walletType,
           address: '0xC26f10e1b37A1E7A7De266FeF0c19533489C3e75',
           providerXpub:
             'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
           lowThreshold: { value: 0.2, unit: 'ether' },
+          monitorType: 'alert',
         });
       })
     );
@@ -94,16 +106,18 @@ describe('walletWatcher', () => {
       it(`returns wallet for type ${sponsorWalletType.walletType}`, () => {
         const derivedAddress = walletWatcher.deriveSponsorWalletAddress(sponsorAddress, sponsorWalletType.xpub, '2');
         const walletResult = walletWatcher.determineWalletAddress({
-          apiName: 'api3',
+          name: 'api3',
           providerXpub,
           lowThreshold: { value: 0.2, unit: 'ether' },
+          monitorType: 'alert',
           sponsor: sponsorAddress,
           walletType: sponsorWalletType.walletType,
         });
         expect(walletResult).toEqual({
-          apiName: 'api3',
+          name: 'api3',
           address: derivedAddress,
           lowThreshold: { value: 0.2, unit: 'ether' },
+          monitorType: 'alert',
           providerXpub:
             'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
           sponsor: sponsorAddress,
@@ -115,20 +129,22 @@ describe('walletWatcher', () => {
     it(`returns wallet for type Airseeker`, () => {
       const derivedAddress = walletWatcher.deriveSponsorWalletAddress(sponsorAddress, providerXpub, '5');
       const walletResult = walletWatcher.determineWalletAddress({
-        apiName,
+        name,
         providerXpub,
         lowThreshold: { value: 0.2, unit: 'ether' },
+        monitorType: 'alert',
         sponsor: sponsorAddress,
         walletType: 'Airseeker',
       });
       expect(walletResult).toEqual({
-        apiName: 'api3',
+        name: 'api3',
         address: derivedAddress,
         providerXpub:
           'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
         sponsor: sponsorAddress,
         walletType: 'Airseeker',
         lowThreshold: { value: 0.2, unit: 'ether' },
+        monitorType: 'alert',
       });
     });
   });
@@ -199,10 +215,11 @@ describe('walletWatcher', () => {
         ...wallets,
         '31337': [
           {
-            apiName: 'api3',
+            name: 'api3',
             walletType: 'API3',
             address: '0xC26f10e1b37A1E7A7De266FeF0c19533489C3e75',
             lowThreshold: { value: 0.15, unit: 'ether' },
+            monitorType: 'alert',
           },
           ...wallets['31337'],
         ],
@@ -261,7 +278,7 @@ describe('walletWatcher', () => {
       expect(getBalanceMock).toHaveBeenCalledTimes(3);
 
       expect(limitedSendToOpsGenieLowLevel).toHaveBeenCalledWith({
-        priority: 'P2',
+        priority: 'P3',
         alias: `get-balance-error-${opsGenieAliasSuffix}`,
         message: `Unable to get balance for address ${addressToBeFunded} on chain ${chainName}`,
         description: expect.stringContaining('Unexpected RPC error'),

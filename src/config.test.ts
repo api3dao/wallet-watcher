@@ -65,7 +65,8 @@ describe('wallets.json', () => {
     const invalidWallets = {
       1: [
         {
-          apiName: 'api3',
+          name: 'api3',
+          monitorType: 'alert',
           walletType: 'Provider',
           providerXpub:
             'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
@@ -94,7 +95,8 @@ describe('wallets.json', () => {
     const invalidWallets = {
       1: [
         {
-          apiName: 'api3',
+          name: 'api3',
+          monitorType: 'alert',
           walletType: 'Provider-Sponsor',
           providerXpub:
             'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
@@ -123,7 +125,8 @@ describe('wallets.json', () => {
     const invalidWallets = {
       1: [
         {
-          apiName: 'api3',
+          name: 'api3',
+          monitorType: 'alert',
           walletType: 'Provider-Sponsor',
           sponsor: '0x9fEe9F24ab79adacbB51af82fb82CFb9D818c6d9',
           lowThreshold: { value: 0.2, unit: 'ether' },
@@ -151,7 +154,8 @@ describe('wallets.json', () => {
     const invalidWallets = {
       1: [
         {
-          apiName: 'api3',
+          name: 'api3',
+          monitorType: 'alert',
           walletType: 'API3',
           address: '0x9fEe9F24ab79adacbB51af82fb82CFb9D818c6d9',
         },
@@ -178,7 +182,8 @@ describe('wallets.json', () => {
     const invalidWallets = {
       1: [
         {
-          apiName: 'api3',
+          name: 'api3',
+          monitorType: 'alert',
           walletType: 'API3',
           address: '0x9fEe9F24ab79adacbB51af82fb82CFb9D818c6d9',
           lowThreshold: { value: '0.2', unit: 'satoshi', criticalValue: '0.1' },
@@ -304,7 +309,8 @@ describe('wallets.json', () => {
     const invalidWallets = {
       1: [
         {
-          apiName: 'api3',
+          name: 'api3',
+          monitorType: 'alert',
           sponsor: '0x9fEe9F24ab79adacbB51af82fb82CFb9D818c6d9',
           providerXpub:
             'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
@@ -319,10 +325,10 @@ describe('wallets.json', () => {
       `Invalid wallets.json file: ${new z.ZodError([
         {
           code: 'invalid_union_discriminator',
-          options: ['Provider', 'API3', 'Provider-Sponsor', 'API3-Sponsor', 'Airseeker'],
+          options: ['Provider', 'API3', 'Provider-Sponsor', 'API3-Sponsor', 'Airseeker', 'Monitor'],
           path: ['1', 0, 'walletType'],
           message:
-            "Invalid discriminator value. Expected 'Provider' | 'API3' | 'Provider-Sponsor' | 'API3-Sponsor' | 'Airseeker'",
+            "Invalid discriminator value. Expected 'Provider' | 'API3' | 'Provider-Sponsor' | 'API3-Sponsor' | 'Airseeker' | 'Monitor'",
         },
       ])}`
     );
@@ -333,7 +339,8 @@ describe('wallets.json', () => {
       1: [
         {
           walletType: 'invalid',
-          apiName: 'api3',
+          name: 'api3',
+          monitorType: 'alert',
           sponsor: '0x9fEe9F24ab79adacbB51af82fb82CFb9D818c6d9',
           providerXpub:
             'xpub661MyMwAqRbcFeZ1CUvUpMs5bBSVLPHiuTqj7dZPertAGtd3xyTW1vrPspz7B34A7sdPahw7psrJjCXmn8KpF92jQssoqmsTk8fZ9PZN8xK',
@@ -348,10 +355,10 @@ describe('wallets.json', () => {
       `Invalid wallets.json file: ${new z.ZodError([
         {
           code: 'invalid_union_discriminator',
-          options: ['Provider', 'API3', 'Provider-Sponsor', 'API3-Sponsor', 'Airseeker'],
+          options: ['Provider', 'API3', 'Provider-Sponsor', 'API3-Sponsor', 'Airseeker', 'Monitor'],
           path: ['1', 0, 'walletType'],
           message:
-            "Invalid discriminator value. Expected 'Provider' | 'API3' | 'Provider-Sponsor' | 'API3-Sponsor' | 'Airseeker'",
+            "Invalid discriminator value. Expected 'Provider' | 'API3' | 'Provider-Sponsor' | 'API3-Sponsor' | 'Airseeker' | 'Monitor'",
         },
       ])}`
     );
