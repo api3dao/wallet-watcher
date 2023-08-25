@@ -38,7 +38,8 @@
     "test": "jest --selectProjects unit",
     "test:e2e": "SILENCE_LOGGER=true jest --selectProjects e2e --runInBand",
     "prepare": "husky install",
-    "deploy:PRODUCTION": "yarn build && yarn sls deploy --config serverless.yml"
+    "deploy:PRODUCTION": "yarn build && yarn sls deploy --config serverless.yml",
+    "generate:wallets": "yarn ts-node scripts/generate-wallet-config.ts "
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.2.3",

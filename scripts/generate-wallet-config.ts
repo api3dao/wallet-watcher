@@ -636,7 +636,7 @@ const main = async () => {
       walletType: 'Monitor',
       monitorType: 'monitor',
       address,
-      name: `${addressKey} Signer`,
+      name: `${addressKey.charAt(0).toUpperCase() + addressKey.slice(1)} Signer`,
       lowThreshold: {
         unit: wallets[0].lowThreshold.unit,
         value: 0.0001,
