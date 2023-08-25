@@ -627,7 +627,7 @@ const main = async () => {
       address: merkleFunderDepositories[chainId][team],
       lowThreshold: {
         unit: wallets[0].lowThreshold.unit,
-        value: merkleFunderDepositoryLowThresholdValue,
+        value: merkleFunderDepositoryLowThresholdValue * 0.95,
         criticalValue: merkleFunderDepositoryLowThresholdValue / 2,
       },
     }));
