@@ -611,13 +611,11 @@ const main = async () => {
         airseekerSponsorWallet: 'API3 Airseeker 1',
         merkleFunderWorkerWallet: 'API3 MerkleFunder EOA',
         merkleFunderDepository: 'API3 Depository Contract',
-        dapiFallbackV1: 'API3 Fallback V1',
       },
       nodary: {
         airseekerSponsorWallet: 'Nodary Airseeker 1',
         merkleFunderWorkerWallet: 'Nodary MerkleFunder EOA',
         merkleFunderDepository: 'Nodary Depository Contract',
-        dapiFallbackV1: 'Nodary Fallback V1',
       },
     };
     const baseWalletConfig = { walletType: 'API3', monitorType: 'alert' };
