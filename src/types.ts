@@ -1,4 +1,3 @@
-import { config } from '@api3/airnode-validator';
 import { ethers } from 'ethers';
 import { z } from 'zod';
 
@@ -71,36 +70,36 @@ const baseWalletSchema = z.object({
 
 const providerWalletSchema = baseWalletSchema.extend({
   walletType: z.literal('Provider'),
-  address: config.evmAddressSchema,
+  address: evmAddressSchema,
   providerXpub: z.string(),
 });
 
 const api3WalletSchema = baseWalletSchema.extend({
   walletType: z.literal('API3'),
-  address: config.evmAddressSchema,
+  address: evmAddressSchema,
 });
 
 const providerSponsorWalletSchema = baseWalletSchema.extend({
   walletType: z.literal('Provider-Sponsor'),
-  sponsor: config.evmAddressSchema,
+  sponsor: evmAddressSchema,
   providerXpub: z.string(),
 });
 
 const api3SponsorWalletSchema = baseWalletSchema.extend({
   walletType: z.literal('API3-Sponsor'),
-  sponsor: config.evmAddressSchema,
+  sponsor: evmAddressSchema,
   providerXpub: z.string(),
 });
 
 const airseekerSponsorWalletSchema = baseWalletSchema.extend({
   walletType: z.literal('Airseeker'),
-  sponsor: config.evmAddressSchema,
+  sponsor: evmAddressSchema,
   providerXpub: z.string(),
 });
 
 export const monitorWalletSchema = baseWalletSchema.extend({
   walletType: z.literal('Monitor'),
-  address: config.evmAddressSchema,
+  address: evmAddressSchema,
 });
 
 export const walletSchema = z.discriminatedUnion('walletType', [
@@ -120,7 +119,7 @@ export type Config = z.infer<typeof configSchema>;
 export type Wallet = z.infer<typeof walletSchema>;
 export type Wallets = z.infer<typeof walletsSchema>;
 export type WalletType = z.infer<typeof walletTypeSchema>;
-export type EvmAddress = z.infer<typeof config.evmAddressSchema>;
+export type EvmAddress = z.infer<typeof evmAddressSchema>;
 
 export type ChainState = ChainConfig & {
   chainName: string;
