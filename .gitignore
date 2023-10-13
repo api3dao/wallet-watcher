@@ -5,6 +5,7 @@
 /lib
 .build
 /.serverless
+/ncc
 
 # IDE specific files
 .vscode

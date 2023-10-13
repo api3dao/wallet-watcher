@@ -1,12 +1,11 @@
 service: wallet-watcher
 
-plugins:
-  - serverless-plugin-typescript
-
 variablesResolutionMode: 20210326
 
 package:
   patterns:
+    - '!./**'
+    - 'ncc/**'
     - ./config/config.json
     - ./config/wallets.json
 
@@ -26,8 +25,8 @@ provider:
 
 functions:
   wallet-watcher:
-    handler: src/handlers.walletWatcherHandler
-    timeout: 360
-    memorySize: 128
+    handler: ./ncc/index.walletWatcherHandler
+    timeout: 900
+    memorySize: 256
     events:
-      - schedule: rate(5 minutes)
+      - schedule: rate(10 minutes)
