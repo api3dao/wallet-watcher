@@ -26,7 +26,7 @@ provider:
 functions:
   wallet-watcher:
     handler: ./ncc/index.walletWatcherHandler
-    timeout: 900
+    timeout: 360
     memorySize: 256
     events:
       - schedule: rate(10 minutes)
