@@ -12,7 +12,7 @@ import { ChainStates, ChainsConfig, Config, Wallet, Wallets } from './types';
 import prisma from './database';
 
 const limiter = new Bottleneck({
-  maxConcurrent: 2,
+  maxConcurrent: 10,
   minTime: 300,
 });
 
