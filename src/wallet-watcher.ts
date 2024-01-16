@@ -16,7 +16,10 @@ const limiter = new Bottleneck({
   minTime: 300,
 });
 
-const { limitedSendToOpsGenieLowLevel, limitedCloseOpsGenieAlertWithAlias } = getOpsGenieLimiter();
+const { limitedSendToOpsGenieLowLevel, limitedCloseOpsGenieAlertWithAlias } = getOpsGenieLimiter({
+  minTime: 10,
+  maxConcurrent: 10,
+});
 
 /**
  * Gets the chain name from @api3/chains for the provided chain id
