@@ -12,11 +12,14 @@ import { ChainStates, ChainsConfig, Config, Wallet, Wallets } from './types';
 import prisma from './database';
 
 const limiter = new Bottleneck({
-  maxConcurrent: 2,
+  maxConcurrent: 10,
   minTime: 300,
 });
 
-const { limitedSendToOpsGenieLowLevel, limitedCloseOpsGenieAlertWithAlias } = getOpsGenieLimiter();
+const { limitedSendToOpsGenieLowLevel, limitedCloseOpsGenieAlertWithAlias } = getOpsGenieLimiter({
+  minTime: 10,
+  maxConcurrent: 10,
+});
 
 /**
  * Gets the chain name from @api3/chains for the provided chain id
