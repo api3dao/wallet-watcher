@@ -81,7 +81,7 @@
     "@api3/airnode-node": "^0.11.1",
     "@api3/airnode-protocol": "^0.11.1",
     "@api3/airnode-utilities": "^0.11.1",
-    "@api3/chains": "^3.4.2",
+    "@api3/chains": "^4.11.1",
     "@api3/ois": "^2.0.0",
     "@api3/operations-utilities": "^0.2.2",
     "@api3/promise-utils": "^0.4.0",
