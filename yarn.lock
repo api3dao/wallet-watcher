@@ -12208,9 +12208,9 @@ supports-preserve-symlinks-flag@^1.0.0:
   integrity sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==
 
 systeminformation@^5.7:
-  version "5.12.6"
-  resolved "https://registry.yarnpkg.com/systeminformation/-/systeminformation-5.12.6.tgz#b75d7aaf9f5da32439fc633d2be9eb741691d200"
-  integrity sha512-FkCvT5BOuH1OE3+8lFM25oXIYJ0CM8kq4Wgvz2jyBTrsOIgha/6gdJXgbF4rv+g0j/5wJqQLDKan7kc/p7uIvw==
+  version "5.22.0"
+  resolved "https://registry.yarnpkg.com/systeminformation/-/systeminformation-5.22.0.tgz#d2b3c75bfa68be612d6ed4addb94cc59b901797b"
+  integrity sha512-oAP80ymt8ssrAzjX8k3frbL7ys6AotqC35oikG6/SG15wBw+tG9nCk4oPaXIhEaAOAZ8XngxUv3ORq2IuR3r4Q==
 
 table-layout@^1.0.2:
   version "1.0.2"
