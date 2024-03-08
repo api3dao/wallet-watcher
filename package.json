@@ -89,7 +89,7 @@
     "@openzeppelin/merkle-tree": "^1.0.4",
     "@prisma/client": "^4.14.1",
     "@slack/bolt": "^3.13.1",
-    "axios": "^1.4.0",
+    "axios": "^1.6.0",
     "bottleneck": "^2.19.5",
     "ethers": "^5.4.4",
     "lodash": "^4.17.21",
